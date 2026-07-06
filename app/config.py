@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     bexio_api_token: str = ""
     bexio_redirect_uri: str = "http://localhost:8000/bexio/callback"
     bexio_api_base_url: str = "https://api.bexio.com"
-    bexio_auth_base_url: str = "https://idp.bexio.com"
+    # idp.bexio.com wurde per 31.03.2025 abgeschaltet (Migration auf Keycloak-basierten
+    # Login-Server); neuer Realm-Endpunkt siehe
+    # https://developer.bexio.com/api-reference/introduction/security-and-auth
+    bexio_auth_base_url: str = "https://auth.bexio.com/realms/bexio"
     bexio_scopes: str = "kb_offer_show,kb_order_show,kb_invoice_show,kb_credit_voucher_show,contact_show"
 
     # "prorata" oder "full_month" - siehe Konzept Abschnitt 3

@@ -73,11 +73,11 @@ class BexioClient:
             "scope": " ".join(self.settings.bexio_scope_list),
             "state": state,
         }
-        return f"{self.settings.bexio_auth_base_url}/authorize?{urlencode(params)}"
+        return f"{self.settings.bexio_auth_base_url}/protocol/openid-connect/auth?{urlencode(params)}"
 
     def exchange_code_for_token(self, code: str) -> OAuthToken:
         response = httpx.post(
-            f"{self.settings.bexio_auth_base_url}/token",
+            f"{self.settings.bexio_auth_base_url}/protocol/openid-connect/token",
             data={
                 "grant_type": "authorization_code",
                 "code": code,
@@ -110,7 +110,7 @@ class BexioClient:
 
     def _refresh_token(self, token: OAuthToken) -> OAuthToken:
         response = httpx.post(
-            f"{self.settings.bexio_auth_base_url}/token",
+            f"{self.settings.bexio_auth_base_url}/protocol/openid-connect/token",
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": token.refresh_token,
