@@ -21,7 +21,6 @@ def test_case_insensitive_lookup():
 
 def test_night_relevant_codes():
     assert ist_uebernachtung("LH-UEB") is True
-    assert ist_uebernachtung("LH-UEB-EZU") is True
     assert ist_uebernachtung("AH-VLP") is False
     assert ist_uebernachtung(None) is False
 
@@ -31,6 +30,12 @@ def test_codes_found_in_real_bexio_data():
     # ersten Live-Sync gegen eine echte Bexio-Firma zum Vorschein.
     assert ertragsart_fuer("AH-FRU") == ErtragsArt.VERPFLEGUNG
     assert ertragsart_fuer("LH-UEB-DZ") == ErtragsArt.UEBERNACHTUNG
-    # Der Doppelzimmerzuschlag ist ein "pro Nacht"-Zuschlag, keine eigene Nacht -
-    # darf nicht zusaetzlich in die Naechte-Zaehlung einfliessen.
+    assert ertragsart_fuer("LH-UEB-EZU") == ErtragsArt.UEBERNACHTUNG
+
+
+def test_night_surcharges_excluded_from_night_count():
+    # Laut echtem Beleg sind Einzel-/Doppelzimmerzuschlag explizit "Zusatzkosten
+    # pro Nacht" - keine zusaetzliche Nacht, sonst wuerde die Naechte-Zaehlung
+    # doppelt zaehlen (Basis-Uebernachtung + Zuschlag fuer dieselbe Nacht).
+    assert ist_uebernachtung("LH-UEB-EZU") is False
     assert ist_uebernachtung("LH-UEB-DZ") is False

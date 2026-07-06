@@ -2,9 +2,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from decimal import Decimal
+
 from app.bexio.client import BexioApiError
 from app.db import Base
-from app.sync.service import _extract_product_code, sync_credit_notes
+from app.models import LineItem
+from app.sync.service import _document_metrics, _extract_product_code, sync_credit_notes
 
 
 @pytest.fixture
@@ -63,3 +66,57 @@ def test_extract_product_code_with_hyphenated_code():
 def test_extract_product_code_falls_back_when_no_text_match():
     assert _extract_product_code({"text": "Keine Produktcode-Angabe hier"}) is None
     assert _extract_product_code({}) is None
+
+
+def test_pax_is_derived_from_base_night_quantity_when_no_pax_field(db_session):
+    # Echter Beleg: LH-UEB wird "pro Person und Nacht" verrechnet, hier 16.00 fuer
+    # einen Aufenthalt von 4 Naechten -> 4 Personen.
+    db_session.add(
+        LineItem(
+            document_type="order",
+            document_id=1,
+            position_bexio_id=1,
+            product_code="LH-UEB",
+            quantity=Decimal("16.00"),
+            raw={"text": "Produktcode: LH-UEB"},
+        )
+    )
+    db_session.commit()
+
+    metrics = _document_metrics(db_session, "order", 1, total=Decimal("1000"), physical_nights=4)
+    assert metrics.pax == 4
+    assert metrics.nights == Decimal("16.00")
+
+
+def test_pax_not_derived_without_known_physical_nights(db_session):
+    db_session.add(
+        LineItem(
+            document_type="order",
+            document_id=2,
+            position_bexio_id=1,
+            product_code="LH-UEB",
+            quantity=Decimal("16.00"),
+            raw={},
+        )
+    )
+    db_session.commit()
+
+    metrics = _document_metrics(db_session, "order", 2, total=Decimal("1000"), physical_nights=None)
+    assert metrics.pax is None
+
+
+def test_explicit_pax_field_takes_precedence_over_derivation(db_session):
+    db_session.add(
+        LineItem(
+            document_type="order",
+            document_id=3,
+            position_bexio_id=1,
+            product_code="LH-UEB",
+            quantity=Decimal("16.00"),
+            raw={"pax": 7},
+        )
+    )
+    db_session.commit()
+
+    metrics = _document_metrics(db_session, "order", 3, total=Decimal("1000"), physical_nights=4)
+    assert metrics.pax == 7  # nicht 4 - explizites Feld gewinnt gegenueber Herleitung

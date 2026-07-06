@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ from app.admin_config import get_effective_config
 from app.bexio.client import BexioApiError, BexioClient
 from app.config import Settings, get_settings
 from app.domain.allocation import AllocationInput, allocate
-from app.domain.periods import extract_service_period
+from app.domain.periods import extract_service_period, nights_between
 from app.domain.product_mapping import ist_uebernachtung
 from app.domain.soll_ist import DocumentMetrics, compute_booking_metrics
 from app.matching.chain import (
@@ -340,8 +340,21 @@ def full_sync(db: Session, settings: Settings | None = None) -> dict:
 # ----------------------------------------------------------------------
 # Transformationspipeline: Verkettung + Abgrenzung + Soll/Ist (Konzept Abschnitt 6)
 # ----------------------------------------------------------------------
-def _document_metrics(db: Session, document_type: str, document_id: int, total: Decimal) -> DocumentMetrics:
-    """Aggregiert Positionsmengen eines Dokuments zu Naechten/PAX."""
+def _document_metrics(
+    db: Session,
+    document_type: str,
+    document_id: int,
+    total: Decimal,
+    physical_nights: int | None = None,
+) -> DocumentMetrics:
+    """Aggregiert Positionsmengen eines Dokuments zu Naechten/PAX.
+
+    Bexio liefert kein eigenes PAX-/Teilnehmerzahl-Feld (Konzept 9.2). Verifiziert
+    gegen einen echten Beleg: die Basis-Uebernachtungsposition (LH-UEB) wird "pro
+    Person und Nacht" verrechnet - die PAX-Zahl laesst sich also herleiten als
+    Menge / tatsaechliche Naechte (aus dem Leistungszeitraum), sofern kein
+    explizites PAX-Feld gefunden wird.
+    """
     items = db.query(LineItem).filter_by(document_type=document_type, document_id=document_id).all()
     nights_total = sum(
         (item.quantity for item in items if ist_uebernachtung(item.product_code)), Decimal("0")
@@ -352,6 +365,9 @@ def _document_metrics(db: Session, document_type: str, document_id: int, total: 
         if candidate:
             pax = int(candidate)
             break
+    if pax is None and physical_nights and nights_total > 0:
+        derived = (nights_total / Decimal(physical_nights)).to_integral_value(rounding=ROUND_HALF_UP)
+        pax = int(derived)
     return DocumentMetrics(pax=pax, nights=nights_total if nights_total > 0 else None, revenue=total)
 
 
@@ -397,10 +413,30 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
         invoice_row = invoices_by_id.get(chain.invoice.id) if chain.invoice else None
         credit_note_row = credit_notes_by_id.get(chain.credit_note.id) if chain.credit_note else None
 
-        quote_metrics = _document_metrics(db, "quote", quote_row.id, quote_row.total) if quote_row else None
-        order_metrics = _document_metrics(db, "order", order_row.id, order_row.total) if order_row else None
+        anchor_doc = order_row or invoice_row or quote_row
+        title = anchor_doc.title if anchor_doc else ""
+        doc_date = (order_row.order_date if order_row else None) or (
+            invoice_row.invoice_date if invoice_row else None
+        ) or (quote_row.quote_date if quote_row else None)
+        service_start, service_end = extract_service_period(title, doc_date)
+        physical_nights = (
+            nights_between(service_start, service_end) if service_start and service_end else None
+        )
+
+        quote_metrics = (
+            _document_metrics(db, "quote", quote_row.id, quote_row.total, physical_nights)
+            if quote_row
+            else None
+        )
+        order_metrics = (
+            _document_metrics(db, "order", order_row.id, order_row.total, physical_nights)
+            if order_row
+            else None
+        )
         invoice_metrics = (
-            _document_metrics(db, "invoice", invoice_row.id, invoice_row.total) if invoice_row else None
+            _document_metrics(db, "invoice", invoice_row.id, invoice_row.total, physical_nights)
+            if invoice_row
+            else None
         )
 
         booking_metrics = compute_booking_metrics(
@@ -409,12 +445,6 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
             invoice=invoice_metrics,
             credit_note_total=credit_note_row.total if credit_note_row else None,
         )
-
-        title = (order_row or invoice_row or quote_row).title if (order_row or invoice_row or quote_row) else ""
-        doc_date = (order_row.order_date if order_row else None) or (
-            invoice_row.invoice_date if invoice_row else None
-        ) or (quote_row.quote_date if quote_row else None)
-        service_start, service_end = extract_service_period(title, doc_date)
 
         booking = db.query(Booking).filter_by(booking_key=chain.booking_key).one_or_none()
         if booking is None:
@@ -425,7 +455,6 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
         booking.order_id = order_row.id if order_row else None
         booking.invoice_id = invoice_row.id if invoice_row else None
         booking.credit_note_id = credit_note_row.id if credit_note_row else None
-        anchor_doc = order_row or invoice_row or quote_row
         booking.contact_id = anchor_doc.contact_id if anchor_doc else None
         contact = contacts_by_id.get(booking.contact_id) if booking.contact_id else None
         booking.kunde = contact.name if contact else ""

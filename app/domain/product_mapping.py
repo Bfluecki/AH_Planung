@@ -36,13 +36,15 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "PZ": ErtragsArt.PARKPLATZ,
 }
 
-# Nur Codes, deren Menge tatsaechlich die Anzahl Uebernachtungen darstellt (fuer die
-# Naechte/PAX-Naechte-Berechnung, siehe app/domain/allocation.py). LH-UEB-DZ etc. sind
-# Zuschlaege "pro Nacht" und wuerden die Naechte doppelt zaehlen, wenn sie hier
-# mitgezaehlt wuerden - sie fliessen nur ueber PRODUCT_CODE_MAP in den Umsatz ein.
+# Nur Codes, deren Menge tatsaechlich die Basis-Uebernachtungen (PAX-Naechte)
+# darstellt (fuer die Naechte-Berechnung UND die PAX-Herleitung, siehe
+# app/domain/allocation.py und _document_metrics() in app/sync/service.py).
+# LH-UEB-EZU/LH-UEB-DZ sind laut echten Belegen Zuschlaege "pro Nacht" (Einzel-/
+# Doppelzimmerzuschlag), keine zusaetzlichen Naechte - sie wuerden sonst doppelt
+# gezaehlt. Sie fliessen weiterhin ueber PRODUCT_CODE_MAP in den Umsatz/die
+# Ertragsart-Auswertung ein, nur nicht in die Naechte-/PAX-Zaehlung.
 NIGHT_RELEVANT_CODES = {
     "LH-UEB",
-    "LH-UEB-EZU",
     "AH-UEB-ANT",
 }
 
