@@ -66,13 +66,30 @@ Soll-/Ist-Berechnung, Produktcode-Mapping, Aggregation.
 
 ## Bexio anbinden
 
+Zwei Auth-Modi, ein statischer API-Token hat immer Vorrang vor OAuth2
+(`EffectiveConfig.bexio_auth_mode` in `app/admin_config.py`):
+
+**Option A — statischer API-Token (einfach, empfohlen):**
+1. Token in Bexio erzeugen (Einstellungen → API-Token o.ä. je nach Bexio-Plan).
+2. Über `/admin` eintragen (Feld „API-Token (statisch)") oder als `BEXIO_API_TOKEN`
+   Env-Variable setzen.
+3. Kein Redirect-Flow, kein Client-ID/Secret nötig.
+
+**Option B — OAuth2 (falls kein API-Token verfügbar ist):**
 1. Developer-App unter https://developer.bexio.com registrieren, Redirect-URI exakt auf
    `https://<deine-domain>/bexio/callback` setzen.
-2. `BEXIO_CLIENT_ID` / `BEXIO_CLIENT_SECRET` als Env-Variable setzen.
+2. `BEXIO_CLIENT_ID` / `BEXIO_CLIENT_SECRET` als Env-Variable setzen (oder über `/admin`).
 3. `/bexio/login` im Browser öffnen → Bexio-Login → Redirect zu `/bexio/callback`,
    Token wird in der DB gespeichert (Tabelle `oauth_token`).
-4. `/sync/run` (POST) oder auf den nächsten Scheduler-Lauf warten
-   (`SYNC_INTERVAL_MINUTES`, Default 60).
+
+Danach in beiden Fällen: `/sync/run` (POST) oder auf den nächsten Scheduler-Lauf warten
+(`SYNC_INTERVAL_MINUTES`, Default 60).
+
+**Read-only-Garantie:** `BexioClient._request()` (`app/bexio/client.py`) akzeptiert
+ausschliesslich `"GET"` und wirft andernfalls einen `ValueError`, bevor irgendein
+Netzwerk-Call stattfindet — es gibt in der Klasse keinen Code-Pfad, der nach Bexio
+schreibt. Die App kann also nur Daten aus Bexio herunterladen/synchronisieren, nie
+etwas dort verändern. Abgedeckt durch `tests/test_bexio_client.py`.
 
 **Wichtig:** Die Endpunkt-Pfade und Feldnamen in `app/bexio/client.py` und die
 Referenzfeld-Kandidaten in `app/sync/service.py` (`_FIELD_CANDIDATES`) sind Platzhalter,

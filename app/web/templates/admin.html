@@ -21,23 +21,48 @@
 
     <section>
         <h2>Bexio-Verbindung</h2>
-        {% if token %}
-        <p>Status: <span class="status-ok">verbunden</span> — Token gültig bis {{ token.expires_at.strftime("%d.%m.%Y %H:%M UTC") }}, Scope: {{ token.scope or "-" }}</p>
+        <p>Auth-Modus: <strong>{{ "Statischer API-Token" if effective.bexio_auth_mode == "api_token" else "OAuth2" }}</strong>
+           — die App führt ausschliesslich Lese-/Download-Zugriffe (GET) gegen Bexio aus, nie Schreibzugriffe.</p>
+        {% if effective.bexio_auth_mode == "api_token" %}
+        <p>Status: <span class="status-ok">API-Token gesetzt</span></p>
+        {% elif token %}
+        <p>Status: <span class="status-ok">verbunden (OAuth2)</span> — Token gültig bis {{ token.expires_at.strftime("%d.%m.%Y %H:%M UTC") }}, Scope: {{ token.scope or "-" }}</p>
         {% else %}
         <p>Status: <span class="status-missing">nicht verbunden</span></p>
         {% endif %}
         <nav>
-            <a href="/bexio/login" class="button">Mit Bexio verbinden</a>
+            {% if effective.bexio_auth_mode == "oauth2" %}
+            <a href="/bexio/login" class="button">Mit Bexio verbinden (OAuth2)</a>
+            {% endif %}
             <form action="/sync/run" method="post" class="inline-form">
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
         </nav>
+        {% if effective.bexio_auth_mode == "oauth2" %}
         <p class="hint">Redirect-URI für die Bexio-Developer-App: <code>{{ redirect_uri }}</code></p>
+        {% endif %}
     </section>
 
     <section>
         <h2>Bexio-Zugangsdaten</h2>
         <form action="/admin/save" method="post">
+            <table class="admin-form">
+                <tr>
+                    <td><label for="bexio_api_token">API-Token (statisch, empfohlen)</label></td>
+                    <td>
+                        <input type="password" id="bexio_api_token" name="bexio_api_token"
+                               value="" placeholder="unverändert lassen = nicht ändern" autocomplete="new-password">
+                        <span class="source-tag">
+                            {{ "gesetzt (DB-Override)" if effective.bexio_api_token_is_override
+                               else ("gesetzt (Env-Variable)" if effective.bexio_api_token else "nicht gesetzt") }}
+                        </span>
+                        <p class="hint">Ist ein API-Token gesetzt, hat er Vorrang vor Client-ID/Secret unten und
+                            der OAuth2-Login ist nicht nötig.</p>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>Alternative: OAuth2 Client-ID/Secret</h3>
             <table class="admin-form">
                 <tr>
                     <td><label for="bexio_client_id">Client-ID</label></td>
@@ -85,7 +110,7 @@
             <button type="submit">Speichern</button>
         </form>
 
-        {% if effective.bexio_client_id_is_override or effective.bexio_client_secret_is_override %}
+        {% if effective.bexio_client_id_is_override or effective.bexio_client_secret_is_override or effective.bexio_api_token_is_override %}
         <form action="/admin/clear-bexio-credentials" method="post" class="inline-form" style="margin-top: 1rem;">
             <button type="submit">Bexio-Zugangsdaten-Override entfernen (zurück auf Env-Variablen)</button>
         </form>

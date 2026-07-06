@@ -45,7 +45,7 @@ def admin_page(request: Request, db: Session = Depends(get_db)):
     if request.query_params.get("saved"):
         message = "Gespeichert."
     elif request.query_params.get("cleared"):
-        message = "Bexio-Zugangsdaten-Override entfernt, Env-Variablen gelten wieder."
+        message = "Bexio-Zugangsdaten-Override (Client-ID/Secret/API-Token) entfernt, Env-Variablen gelten wieder."
     return templates.TemplateResponse("admin.html", _context(request, db, message))
 
 
@@ -54,6 +54,7 @@ def admin_save(
     request: Request,
     bexio_client_id: str = Form(""),
     bexio_client_secret: str = Form(""),
+    bexio_api_token: str = Form(""),
     allocation_mode: str = Form(ALLOCATION_MODE_PRORATA),
     monthly_budget_chf: str = Form(""),
     current_planning_year: str = Form(""),
@@ -81,6 +82,7 @@ def admin_save(
         db,
         bexio_client_id=bexio_client_id.strip() or None,
         bexio_client_secret=bexio_client_secret.strip() or None,
+        bexio_api_token=bexio_api_token.strip() or None,
         allocation_mode=allocation_mode,
         monthly_budget_chf=budget,
         current_planning_year=year,

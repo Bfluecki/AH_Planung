@@ -55,6 +55,9 @@ class AdminConfig(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     bexio_client_id: Mapped[str | None] = mapped_column(String, nullable=True)
     bexio_client_secret: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Statischer Bexio-API-Token (Bearer), Alternative zum OAuth2-Flow oben - siehe
+    # Konzept-Anhang/README "Admin-Seite". Ist er gesetzt, hat er Vorrang vor OAuth2.
+    bexio_api_token: Mapped[str | None] = mapped_column(String, nullable=True)
     allocation_mode: Mapped[str | None] = mapped_column(String, nullable=True)
     monthly_budget_chf: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     current_planning_year: Mapped[int | None] = mapped_column(nullable=True)

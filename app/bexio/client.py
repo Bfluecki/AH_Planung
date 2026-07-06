@@ -1,10 +1,21 @@
-"""Bexio-API-Client: OAuth2 Authorization-Code-Flow + Read-Endpunkte.
+"""Bexio-API-Client: OAuth2- oder statischer API-Token-Auth + Read-Endpunkte.
 
-Read-only in Phase 1 (Konzept Abschnitt 7): es werden ausschliesslich GET-Endpunkte
-verwendet. Endpunkt-Pfade und Feldnamen sind gegen https://docs.bexio.com verifiziert
-soweit oeffentlich dokumentiert; da wir keinen Live-Zugang zu einer echten Bexio-Firma
-haben, MUESSEN Pfade/Feldnamen in Phase 1 gegen echte Responses abgeglichen werden
-(siehe Konzept Abschnitt 2 und 9.1).
+Read-only, strukturell erzwungen: _request() akzeptiert nur "GET" und weigert sich
+mit einem ValueError, irgendetwas anderes zu senden - es gibt in dieser Klasse keinen
+Code-Pfad, der jemals nach Bexio schreibt (kein POST/PUT/DELETE gegen Business-Objekte).
+Wer Sync-Only-Zugriff will, kann daher hier ansetzen: neue Endpunkte duerfen nur ueber
+paginate()/get_positions() (beide GET) angebunden werden.
+
+Zwei Auth-Modi (siehe app/admin_config.py, EffectiveConfig.bexio_auth_mode):
+- "api_token": statischer Bexio-API-Token (Bearer), direkt verwendet, kein Redirect-Flow.
+  Einfachste Variante fuer eine einzelne Firma - vom Nutzer in Bexio erzeugt.
+- "oauth2": klassischer Authorization-Code-Flow (app/api/routes_bexio.py), falls kein
+  statischer Token gesetzt ist.
+
+Endpunkt-Pfade und Feldnamen sind gegen https://docs.bexio.com verifiziert soweit
+oeffentlich dokumentiert; da wir keinen Live-Zugang zu einer echten Bexio-Firma haben,
+MUESSEN Pfade/Feldnamen in Phase 1 gegen echte Responses abgeglichen werden (siehe
+Konzept Abschnitt 2 und 9.1).
 """
 from __future__ import annotations
 
@@ -48,6 +59,8 @@ class BexioClient:
         effective = get_effective_config(db, self.settings)
         self.client_id = effective.bexio_client_id
         self.client_secret = effective.bexio_client_secret
+        self.api_token = effective.bexio_api_token
+        self.auth_mode = effective.bexio_auth_mode
 
     # ------------------------------------------------------------------
     # OAuth2 Authorization Code Flow
@@ -112,7 +125,7 @@ class BexioClient:
             )
         return self._store_token(response.json())
 
-    def _get_valid_token(self) -> OAuthToken:
+    def _get_valid_oauth_token(self) -> OAuthToken:
         token = self.db.get(OAuthToken, TOKEN_SINGLETON_ID)
         if token is None:
             raise BexioAuthError("Kein Bexio-Token vorhanden. Bitte /bexio/login durchlaufen.")
@@ -123,13 +136,26 @@ class BexioClient:
             token = self._refresh_token(token)
         return token
 
+    def _get_bearer_token(self) -> str:
+        """Statischer API-Token hat Vorrang vor OAuth2 (siehe EffectiveConfig.bexio_auth_mode)."""
+        if self.auth_mode == "api_token":
+            return self.api_token
+        return self._get_valid_oauth_token().access_token
+
     # ------------------------------------------------------------------
     # Generischer Request mit Rate-Limit-Backoff (Konzept Abschnitt 6)
     # ------------------------------------------------------------------
     def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
-        token = self._get_valid_token()
+        # Strukturelle Read-Only-Garantie: dieser Client darf Bexio ausschliesslich
+        # lesen, siehe Moduldocstring. Neue Endpunkte duerfen nur GET verwenden.
+        if method != "GET":
+            raise ValueError(
+                f"BexioClient ist auf Lesezugriffe (GET) beschraenkt, {method!r} ist nicht erlaubt."
+            )
+
+        bearer_token = self._get_bearer_token()
         headers = kwargs.pop("headers", {})
-        headers["Authorization"] = f"Bearer {token.access_token}"
+        headers["Authorization"] = f"Bearer {bearer_token}"
         headers["Accept"] = "application/json"
         url = f"{self.settings.bexio_api_base_url}{path}"
 
@@ -141,8 +167,13 @@ class BexioClient:
                 time.sleep(retry_after)
                 continue
             if response.status_code == 401:
-                # Token evtl. serverseitig invalidiert - einmalig neu versuchen.
-                token = self._refresh_token(token)
+                if self.auth_mode == "api_token":
+                    # Statische Tokens koennen nicht refresht werden - sofort melden.
+                    raise BexioAuthError(
+                        "Bexio-API-Token abgelehnt (401). Bitte in /admin pruefen/erneuern."
+                    )
+                # OAuth2-Token evtl. serverseitig invalidiert - einmalig neu versuchen.
+                token = self._refresh_token(self.db.get(OAuthToken, TOKEN_SINGLETON_ID))
                 headers["Authorization"] = f"Bearer {token.access_token}"
                 continue
             if response.status_code >= 400:

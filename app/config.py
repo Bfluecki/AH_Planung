@@ -14,6 +14,9 @@ class Settings(BaseSettings):
 
     bexio_client_id: str = ""
     bexio_client_secret: str = ""
+    # Statischer Bexio-API-Token (Bearer) als einfachere Alternative zum OAuth2-Flow.
+    # Ist er gesetzt (hier oder per Admin-Seite), wird er direkt verwendet.
+    bexio_api_token: str = ""
     bexio_redirect_uri: str = "http://localhost:8000/bexio/callback"
     bexio_api_base_url: str = "https://api.bexio.com"
     bexio_auth_base_url: str = "https://idp.bexio.com"
