@@ -15,7 +15,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
-from app.bexio.client import BexioClient
+from app.bexio.client import BexioApiError, BexioClient
 from app.config import Settings, get_settings
 from app.domain.allocation import AllocationInput, allocate
 from app.domain.periods import extract_service_period
@@ -212,20 +212,34 @@ def sync_invoices(client: BexioClient, db: Session, missing_contact_ids: set[int
 
 def sync_credit_notes(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
-    for raw in client.list_credit_notes():
-        row = db.get(CreditNote, raw["id"])
-        if row is None:
-            row = CreditNote(id=raw["id"])
-            db.add(row)
-        row.document_nr = str(_pick(raw, "document_nr", ""))
-        row.contact_id = _ensure_contact_exists(client, db, _pick(raw, "contact_id"), missing_contact_ids)
-        row.title = _pick(raw, "title", "")
-        row.credit_note_date = _to_date(_pick(raw, "date"))
-        row.total = _to_decimal(_pick(raw, "total"))
-        row.reference_invoice_bexio_id = _pick(raw, "reference_invoice_id")
-        row.raw = raw
-        row.synced_at = dt.datetime.now(dt.timezone.utc)
-        count += 1
+    try:
+        for raw in client.list_credit_notes():
+            row = db.get(CreditNote, raw["id"])
+            if row is None:
+                row = CreditNote(id=raw["id"])
+                db.add(row)
+            row.document_nr = str(_pick(raw, "document_nr", ""))
+            row.contact_id = _ensure_contact_exists(client, db, _pick(raw, "contact_id"), missing_contact_ids)
+            row.title = _pick(raw, "title", "")
+            row.credit_note_date = _to_date(_pick(raw, "date"))
+            row.total = _to_decimal(_pick(raw, "total"))
+            row.reference_invoice_bexio_id = _pick(raw, "reference_invoice_id")
+            row.raw = raw
+            row.synced_at = dt.datetime.now(dt.timezone.utc)
+            count += 1
+    except BexioApiError as exc:
+        if exc.status_code == 404:
+            # Endpunkt-Pfad noch nicht verifiziert (Konzept 9.1) oder Feature "Gutschriften"
+            # im Bexio-Plan nicht aktiviert - Sync nicht abbrechen, einfach ohne
+            # Gutschriften weiterlaufen (Buchungen bleiben im Ist unkorrigiert sichtbar).
+            logger.warning(
+                "Gutschriften-Endpunkt (%s) lieferte 404 - wird uebersprungen, siehe "
+                "_DOCUMENT_TYPE_TO_BEXIO_PATH['credit_note'].",
+                _DOCUMENT_TYPE_TO_BEXIO_PATH["credit_note"],
+            )
+            db.rollback()
+            return count
+        raise
     db.commit()
     return count
 
