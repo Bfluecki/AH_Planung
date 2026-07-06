@@ -18,8 +18,15 @@ from app.admin_config import get_effective_config, save_admin_config
 from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
-from app.models import OAuthToken
+from app.models import CreditNote, Invoice, LineItem, OAuthToken, Order, Quote
 from app.web.auth import require_admin_auth
+
+_DOCUMENT_MODELS = {
+    "quote": Quote,
+    "order": Order,
+    "invoice": Invoice,
+    "credit_note": CreditNote,
+}
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin_auth)])
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -94,3 +101,32 @@ def admin_save(
 def admin_clear_bexio(db: Session = Depends(get_db)):
     save_admin_config(db, clear_bexio_credentials=True)
     return RedirectResponse(url="/admin?cleared=1", status_code=303)
+
+
+@router.get("/debug/line-items")
+def admin_debug_line_items(
+    document_type: str = "invoice", limit: int = 3, db: Session = Depends(get_db)
+) -> dict:
+    """Zeigt rohe Bexio-Positionsdaten aus dem Cache, um die Feldnamen-Kandidaten in
+    app/sync/service.py (_FIELD_CANDIDATES) gegen die echte API zu verifizieren
+    (Konzept Abschnitt 9.1/9.2) - z.B. warum Produktcodes nicht erkannt werden."""
+    items = (
+        db.query(LineItem)
+        .filter_by(document_type=document_type)
+        .filter(LineItem.total > 0)
+        .order_by(LineItem.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return {"document_type": document_type, "count": len(items), "samples": [item.raw for item in items]}
+
+
+@router.get("/debug/documents")
+def admin_debug_documents(kind: str = "invoice", limit: int = 2, db: Session = Depends(get_db)) -> dict:
+    """Zeigt rohe Bexio-Dokumentdaten (Angebot/Auftrag/Rechnung/Gutschrift) aus dem
+    Cache - z.B. um ein PAX-/Teilnehmerzahl-Feld auf Dokumentebene zu finden."""
+    model = _DOCUMENT_MODELS.get(kind)
+    if model is None:
+        return {"error": f"Unbekannte kind={kind!r}, erlaubt: {list(_DOCUMENT_MODELS)}"}
+    rows = db.query(model).order_by(model.id.desc()).limit(limit).all()
+    return {"kind": kind, "count": len(rows), "samples": [row.raw for row in rows]}
