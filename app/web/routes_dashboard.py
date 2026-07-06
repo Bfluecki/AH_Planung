@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from app.admin_config import get_effective_config
 from app.config import get_settings
 from app.db import get_db
 from app.domain.reporting import build_report
@@ -23,7 +24,8 @@ MONTH_NAMES_DE = [
 @router.get("/")
 def dashboard(request: Request, year: int | None = None, db: Session = Depends(get_db)):
     settings = get_settings()
-    year = year or settings.current_planning_year
+    effective = get_effective_config(db, settings)
+    year = year or effective.current_planning_year
     year_summary, rows_by_month = build_report(db, year, settings)
     return templates.TemplateResponse(
         "dashboard.html",

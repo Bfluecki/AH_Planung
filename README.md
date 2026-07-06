@@ -26,7 +26,9 @@ app/
     reporting.py               Baut Report-Zeilen für API/Excel/Dashboard
   export/excel.py     openpyxl-Export im Spielwiese-Layout (Detail + Übersicht)
   api/                FastAPI-Router: /bexio (OAuth), /sync, /api/planning, /export
-  web/                Serverseitig gerendertes Dashboard (Jinja2)
+  web/                Serverseitig gerendertes Dashboard (Jinja2) + /admin (siehe unten)
+  admin_config.py     DB-Overrides (Bexio-Zugangsdaten, Budget, Jahr, Verteilmodus) mit
+                      Fallback auf die Env-Variablen aus config.py
   scheduler.py        APScheduler: periodischer Pull (kein Bexio-Webhook nötig)
 
 tests/                pytest für die gesamte Domain-Logik (matching, allocation,
@@ -78,12 +80,27 @@ die in Phase 1 gegen eine echte Bexio-Firma verifiziert werden müssen (siehe Ko
 Abschnitt 9.1/9.2). Das Rohobjekt wird immer komplett in der `raw`-Spalte gespeichert,
 sodass nichts verloren geht, falls ein Feld noch nicht gemappt ist.
 
+## Admin-Seite (`/admin`)
+
+Alternative zu Client-ID/Secret als Railway-Env-Variablen: Unter `/admin` lassen sich
+Bexio-Zugangsdaten, Verteilmodus, Monatsbudget und Planungsjahr direkt in der DB
+überschreiben (Tabelle `admin_config`, siehe `app/admin_config.py`) — ohne Redeploy.
+Ist kein DB-Override gesetzt, gilt weiterhin die Env-Variable.
+
+- Geschützt durch HTTP Basic Auth (`ADMIN_USERNAME`/`ADMIN_PASSWORD`). **Ohne
+  `ADMIN_PASSWORD` bleibt `/admin` komplett gesperrt** (503), nie unauthentifiziert offen.
+- Das Client-Secret wird nie im Klartext an den Browser zurückgegeben; ein leeres
+  Formularfeld lässt den gespeicherten Wert unverändert.
+- „Bexio-Zugangsdaten-Override entfernen" setzt die DB-Werte zurück auf `NULL`, danach
+  gelten wieder die Env-Variablen.
+
 ## Deployment auf Railway
 
 1. Repo mit Railway-Projekt verbinden (Nixpacks erkennt `requirements.txt` automatisch).
 2. PostgreSQL-Plugin hinzufügen → `DATABASE_URL` wird automatisch gesetzt.
 3. Alle Variablen aus `.env.example` als Railway-Env-Variablen setzen (insbesondere
-   `BEXIO_CLIENT_ID`, `BEXIO_CLIENT_SECRET`, `BEXIO_REDIRECT_URI`, `SECRET_KEY`).
+   `BEXIO_CLIENT_ID`, `BEXIO_CLIENT_SECRET`, `BEXIO_REDIRECT_URI`, `SECRET_KEY`,
+   `ADMIN_PASSWORD` falls die Admin-Seite genutzt werden soll).
 4. `railway.json` führt vor jedem Deploy `alembic upgrade head` aus und startet danach
    `uvicorn`.
 

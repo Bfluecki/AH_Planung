@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 
+from app.admin_config import get_effective_config
 from app.config import Settings, get_settings
 from app.models import OAuthToken
 
@@ -42,13 +43,18 @@ class BexioClient:
     def __init__(self, db: Session, settings: Settings | None = None):
         self.db = db
         self.settings = settings or get_settings()
+        # Bexio-Zugangsdaten koennen per Admin-Seite in der DB ueberschrieben werden
+        # (siehe app/admin_config.py) - das hat Vorrang vor den Env-Variablen.
+        effective = get_effective_config(db, self.settings)
+        self.client_id = effective.bexio_client_id
+        self.client_secret = effective.bexio_client_secret
 
     # ------------------------------------------------------------------
     # OAuth2 Authorization Code Flow
     # ------------------------------------------------------------------
     def authorization_url(self, state: str) -> str:
         params = {
-            "client_id": self.settings.bexio_client_id,
+            "client_id": self.client_id,
             "redirect_uri": self.settings.bexio_redirect_uri,
             "response_type": "code",
             "scope": " ".join(self.settings.bexio_scope_list),
@@ -63,8 +69,8 @@ class BexioClient:
                 "grant_type": "authorization_code",
                 "code": code,
                 "redirect_uri": self.settings.bexio_redirect_uri,
-                "client_id": self.settings.bexio_client_id,
-                "client_secret": self.settings.bexio_client_secret,
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
             },
             timeout=30.0,
         )
@@ -95,8 +101,8 @@ class BexioClient:
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": token.refresh_token,
-                "client_id": self.settings.bexio_client_id,
-                "client_secret": self.settings.bexio_client_secret,
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
             },
             timeout=30.0,
         )

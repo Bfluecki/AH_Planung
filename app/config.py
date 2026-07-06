@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     sync_interval_minutes: int = 60
 
+    # Schuetzt /admin (Konfigurationsseite fuer Bexio-Zugangsdaten etc.), siehe
+    # app/web/routes_admin.py. Leeres Passwort => /admin bleibt komplett gesperrt.
+    admin_username: str = "admin"
+    admin_password: str = ""
+
     @property
     def bexio_scope_list(self) -> list[str]:
         return [s.strip() for s in self.bexio_scopes.split(",") if s.strip()]

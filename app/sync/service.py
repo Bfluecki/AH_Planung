@@ -14,6 +14,7 @@ from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
 
+from app.admin_config import get_effective_config
 from app.bexio.client import BexioClient
 from app.config import Settings, get_settings
 from app.domain.allocation import AllocationInput, allocate
@@ -288,6 +289,7 @@ def _document_metrics(db: Session, document_type: str, document_id: int, total: 
 def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
     """Baut alle Booking- und MonthlyAllocation-Zeilen aus dem aktuellen Rohdaten-Cache neu auf."""
     settings = settings or get_settings()
+    effective = get_effective_config(db, settings)
 
     quotes = db.query(Quote).all()
     orders = db.query(Order).all()
@@ -384,7 +386,7 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
                     pax=booking_metrics.pax_soll,
                     nights=booking_metrics.nights_soll,
                 ),
-                mode=settings.allocation_mode,
+                mode=effective.allocation_mode,
             )
             ist_shares = allocate(
                 AllocationInput(
@@ -394,7 +396,7 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
                     pax=booking_metrics.pax_ist,
                     nights=booking_metrics.nights_ist,
                 ),
-                mode=settings.allocation_mode,
+                mode=effective.allocation_mode,
             )
             ist_by_month = {(s.year, s.month): s for s in ist_shares}
             for soll in soll_shares:

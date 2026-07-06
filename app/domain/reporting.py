@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.admin_config import get_effective_config
 from app.config import Settings, get_settings
 from app.domain.aggregation import MonthlyFigure, YearSummary, aggregate_year
 from app.models import Booking, MonthlyAllocation
@@ -71,6 +72,7 @@ def build_report(
     db: Session, year: int, settings: Settings | None = None
 ) -> tuple[YearSummary, dict[int, list[ReportRow]]]:
     settings = settings or get_settings()
+    effective = get_effective_config(db, settings)
 
     allocations = (
         db.query(MonthlyAllocation)
@@ -91,7 +93,7 @@ def build_report(
         )
         for a in allocations
     ]
-    year_summary = aggregate_year(figures, year, settings.monthly_budget_chf)
+    year_summary = aggregate_year(figures, year, effective.monthly_budget_chf)
 
     rows_by_month: dict[int, list[ReportRow]] = {m: [] for m in range(1, 13)}
     for a in allocations:

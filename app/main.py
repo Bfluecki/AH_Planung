@@ -14,6 +14,7 @@ from app.api.routes_planning import router as planning_router
 from app.api.routes_sync import router as sync_router
 from app.config import get_settings
 from app.scheduler import start_scheduler, stop_scheduler
+from app.web.routes_admin import router as admin_router
 from app.web.routes_dashboard import router as dashboard_router
 
 settings = get_settings()
@@ -33,6 +34,7 @@ static_dir = Path(__file__).parent / "web" / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 app.include_router(dashboard_router)
+app.include_router(admin_router)
 app.include_router(bexio_router)
 app.include_router(sync_router)
 app.include_router(planning_router)

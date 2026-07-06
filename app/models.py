@@ -43,6 +43,26 @@ class OAuthToken(Base):
     )
 
 
+class AdminConfig(Base):
+    """Singleton-Tabelle (id=1) fuer per Admin-Seite ueberschreibbare Einstellungen.
+
+    Jedes Feld ist optional: NULL bedeutet "kein Override", die Env-Variable aus
+    app/config.py gilt weiter (siehe app/admin_config.py, get_effective_config()).
+    """
+
+    __tablename__ = "admin_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    bexio_client_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    bexio_client_secret: Mapped[str | None] = mapped_column(String, nullable=True)
+    allocation_mode: Mapped[str | None] = mapped_column(String, nullable=True)
+    monthly_budget_chf: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    current_planning_year: Mapped[int | None] = mapped_column(nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
+    )
+
+
 class Contact(Base):
     __tablename__ = "contacts"
 
