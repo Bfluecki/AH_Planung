@@ -34,9 +34,15 @@ _MONTHS.pop("mai_fr", None)
 
 _MONTH_NAMES_PATTERN = "|".join(sorted(_MONTHS.keys(), key=len, reverse=True))
 
-# "vom 25. bis 28. Mai 2026" / "vom 3. bis zum 5. Juli 2026"
-_DE_RANGE_RE = re.compile(
-    rf"vom?\s+(\d{{1,2}})\.?\s*(?:bis)\s*(?:zum)?\s*(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
+# Trennwort/-zeichen zwischen zwei Tagesangaben. Reale Bexio-Titel verwenden nicht
+# konsequent "bis" - haeufig auch "-", "–" oder "/" (z.B. "06./07. März 2027",
+# "09.-10. Mai 2026"). "vom"/"vom...zum" ist ein optionales Praefix, kein Pflichtwort.
+_SEP = r"(?:bis(?:\s+zum)?|[-–/])"
+_VOM = r"(?:vom\s+)?"
+
+# "21. bis 23. Mai 2027" / "vom 16.-17. April 2026" / "06./07. März 2027"
+_DE_SAME_MONTH_RANGE_RE = re.compile(
+    rf"{_VOM}(\d{{1,2}})\.?\s*{_SEP}\s*(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
     re.IGNORECASE,
 )
 # "du 25 au 28 mai 2026"
@@ -44,9 +50,10 @@ _FR_RANGE_RE = re.compile(
     rf"du\s+(\d{{1,2}})\.?\s*au\s+(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
     re.IGNORECASE,
 )
-# Bereich mit unterschiedlichen Monaten, DE: "vom 25. Juni bis 3. Juli 2026"
-_DE_RANGE_CROSS_MONTH_RE = re.compile(
-    rf"vom?\s+(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+bis\s+(?:zum)?\s*(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
+# Bereich mit unterschiedlichen Monaten: "vom 25. Juni bis 3. Juli 2026" /
+# "29. März bis 3. April 2027" / "31. Januar - 1. Februar 2026" (ohne "vom")
+_DE_CROSS_MONTH_RANGE_RE = re.compile(
+    rf"{_VOM}(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s*{_SEP}\s*(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
     re.IGNORECASE,
 )
 # FR Bereich mit unterschiedlichen Monaten: "du 25 mai au 3 juin 2026"
@@ -58,6 +65,16 @@ _FR_RANGE_CROSS_MONTH_RE = re.compile(
 _NUMERIC_RANGE_RE = re.compile(
     r"(\d{1,2})\.(?:(\d{1,2})\.)?(?:(\d{4})\.?)?\s*[-–]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})"
 )
+# Einzelnes Datum ohne Bereich: "Team Meeting 03. November 2026"
+_DE_SINGLE_DATE_RE = re.compile(
+    rf"(?:vom\s+|am\s+)?(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
+    re.IGNORECASE,
+)
+# Nur Monat/Jahr ohne Tagesangabe: "Probewochenende ... Januar 2027" -> ganzer Monat
+_BARE_MONTH_RE = re.compile(
+    rf"({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
+    re.IGNORECASE,
+)
 
 
 def _month_num(name: str) -> int:
@@ -67,9 +84,25 @@ def _month_num(name: str) -> int:
 def extract_service_period(
     title: str, fallback_date: dt.date | None = None
 ) -> tuple[dt.date | None, dt.date | None]:
-    """Gibt (service_start, service_end) zurueck, best-effort aus dem Titel geparst."""
+    """Gibt (service_start, service_end) zurueck, best-effort aus dem Titel geparst.
+
+    Reihenfolge nach Praezision: numerischer Bereich > Bereich mit zwei Monatsnamen >
+    Bereich mit einem Monatsnamen > Einzeldatum > nur Monat/Jahr (ganzer Monat) >
+    Dokumentdatum als letzter Fallback."""
     if title:
-        for regex in (_DE_RANGE_CROSS_MONTH_RE, _FR_RANGE_CROSS_MONTH_RE):
+        m = _NUMERIC_RANGE_RE.search(title)
+        if m:
+            d1, mon1, year1, d2, mon2, year2 = m.groups()
+            try:
+                end = dt.date(int(year2), int(mon2), int(d2))
+                start_month = int(mon1) if mon1 else int(mon2)
+                start_year = int(year1) if year1 else int(year2)
+                start = dt.date(start_year, start_month, int(d1))
+                return start, end
+            except ValueError:
+                pass
+
+        for regex in (_DE_CROSS_MONTH_RANGE_RE, _FR_RANGE_CROSS_MONTH_RE):
             m = regex.search(title)
             if m:
                 d1, mon1, d2, mon2, year = m.groups()
@@ -80,7 +113,7 @@ def extract_service_period(
                 except ValueError:
                     pass
 
-        for regex in (_DE_RANGE_RE, _FR_RANGE_RE):
+        for regex in (_DE_SAME_MONTH_RANGE_RE, _FR_RANGE_RE):
             m = regex.search(title)
             if m:
                 d1, d2, mon, year = m.groups()
@@ -92,14 +125,22 @@ def extract_service_period(
                 except ValueError:
                     pass
 
-        m = _NUMERIC_RANGE_RE.search(title)
+        m = _DE_SINGLE_DATE_RE.search(title)
         if m:
-            d1, mon1, year1, d2, mon2, year2 = m.groups()
+            d, mon, year = m.groups()
             try:
-                end = dt.date(int(year2), int(mon2), int(d2))
-                start_month = int(mon1) if mon1 else int(mon2)
-                start_year = int(year1) if year1 else int(year2)
-                start = dt.date(start_year, start_month, int(d1))
+                single = dt.date(int(year), _month_num(mon), int(d))
+                return single, single
+            except ValueError:
+                pass
+
+        m = _BARE_MONTH_RE.search(title)
+        if m:
+            mon, year = m.groups()
+            try:
+                month = _month_num(mon)
+                start = dt.date(int(year), month, 1)
+                end = dt.date(int(year), month, calendar.monthrange(int(year), month)[1])
                 return start, end
             except ValueError:
                 pass

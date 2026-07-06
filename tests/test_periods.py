@@ -33,6 +33,64 @@ def test_numeric_range_same_month():
     assert end == dt.date(2026, 5, 28)
 
 
+def test_same_month_range_without_vom_prefix():
+    # Real-world Bexio-Titel: "vom"/"von" ist kein Pflichtwort.
+    start, end = extract_service_period("Probewochenende Les Vagabondes 21. bis 23. Mai 2027")
+    assert start == dt.date(2027, 5, 21)
+    assert end == dt.date(2027, 5, 23)
+
+
+def test_same_month_range_with_dash_separator():
+    start, end = extract_service_period("Probewochenende Ensemble Cantalon 09.-10. Mai 2026")
+    assert start == dt.date(2026, 5, 9)
+    assert end == dt.date(2026, 5, 10)
+
+
+def test_same_month_range_with_dash_and_vom_prefix():
+    start, end = extract_service_period("Workshop vom 16.-17. April 2026")
+    assert start == dt.date(2026, 4, 16)
+    assert end == dt.date(2026, 4, 17)
+
+
+def test_same_month_range_with_slash_separator():
+    start, end = extract_service_period("Probewochenende 06./07. März 2027")
+    assert start == dt.date(2027, 3, 6)
+    assert end == dt.date(2027, 3, 7)
+
+
+def test_cross_month_range_with_dash_no_vom():
+    start, end = extract_service_period("Übernachtung im Louishaus 31. Januar - 1. Februar 2026")
+    assert start == dt.date(2026, 1, 31)
+    assert end == dt.date(2026, 2, 1)
+
+
+def test_cross_month_range_with_bis_no_vom():
+    start, end = extract_service_period(
+        "Probelager Schweizer Jugendbarockorchester 29. März bis 3. April 2027"
+    )
+    assert start == dt.date(2027, 3, 29)
+    assert end == dt.date(2027, 4, 3)
+
+
+def test_range_embedded_after_unrelated_leading_number():
+    # "AMT 12" davor darf nicht als Tagesangabe fehlinterpretiert werden.
+    start, end = extract_service_period("AMT 12 - 6. bis 8. November 2026")
+    assert start == dt.date(2026, 11, 6)
+    assert end == dt.date(2026, 11, 8)
+
+
+def test_single_date_without_range():
+    start, end = extract_service_period("Team Meeting 03. November 2026")
+    assert start == dt.date(2026, 11, 3)
+    assert end == dt.date(2026, 11, 3)
+
+
+def test_bare_month_without_day_falls_back_to_full_month():
+    start, end = extract_service_period("Probewochenende Junger Chor Solothurn Januar 2027")
+    assert start == dt.date(2027, 1, 1)
+    assert end == dt.date(2027, 1, 31)
+
+
 def test_fallback_to_document_date_when_no_range_in_title():
     fallback = dt.date(2026, 4, 12)
     start, end = extract_service_period("Generalversammlung", fallback)
