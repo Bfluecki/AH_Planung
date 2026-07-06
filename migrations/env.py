@@ -1,9 +1,11 @@
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy.engine import make_url
 
 from alembic import context
 
@@ -22,7 +24,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+_db_url = get_settings().database_url
+_db_host = make_url(_db_url).host
+print(f"[alembic] DATABASE_URL host resolved to: {_db_host!r} "
+      f"(DATABASE_URL env var set: {bool(os.environ.get('DATABASE_URL'))})")
+config.set_main_option("sqlalchemy.url", _db_url)
 
 target_metadata = Base.metadata
 
