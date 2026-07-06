@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Aarbergerhus – Umsatzplanung {{ year }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Aarbergerhus – Umsatzplanung {{ year }}</h1>
+        <nav>
+            <a href="/?year={{ year - 1 }}">&larr; {{ year - 1 }}</a>
+            <a href="/?year={{ year + 1 }}">{{ year + 1 }} &rarr;</a>
+            <a href="/export/{{ year }}.xlsx" class="button">Excel-Export</a>
+            <form action="/sync/run" method="post" class="inline-form">
+                <button type="submit">Jetzt synchronisieren</button>
+            </form>
+        </nav>
+    </header>
+
+    <section>
+        <h2>Jahresübersicht</h2>
+        <table class="overview">
+            <thead>
+                <tr>
+                    <th>Monat</th>
+                    <th>Tage</th>
+                    <th>Übernachtungen</th>
+                    <th>Umsatz Soll</th>
+                    <th>Umsatz Ist</th>
+                    <th>Budget</th>
+                    <th>Abweichung</th>
+                    <th>Zielerreichung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in year_summary.months %}
+                <tr>
+                    <td><a href="#monat-{{ m.month }}">{{ month_names[m.month - 1] }}</a></td>
+                    <td>{{ "%.1f"|format(m.days) }}</td>
+                    <td>{{ "%.1f"|format(m.nights_ist) }}</td>
+                    <td>{{ "%.2f"|format(m.umsatz_soll) }}</td>
+                    <td>{{ "%.2f"|format(m.umsatz_ist) }}</td>
+                    <td>{{ "%.2f"|format(m.budget) }}</td>
+                    <td class="{{ 'negative' if m.abweichung < 0 else 'positive' }}">{{ "%.2f"|format(m.abweichung) }}</td>
+                    <td>{{ m.zielerreichung_pct }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td>Jahr total</td>
+                    <td></td>
+                    <td></td>
+                    <td>{{ "%.2f"|format(year_summary.umsatz_soll) }}</td>
+                    <td>{{ "%.2f"|format(year_summary.umsatz_ist) }}</td>
+                    <td>{{ "%.2f"|format(year_summary.budget) }}</td>
+                    <td class="{{ 'negative' if year_summary.abweichung < 0 else 'positive' }}">{{ "%.2f"|format(year_summary.abweichung) }}</td>
+                    <td>{{ year_summary.zielerreichung_pct }}%</td>
+                </tr>
+            </tfoot>
+        </table>
+    </section>
+
+    {% for month in range(1, 13) %}
+    <section id="monat-{{ month }}">
+        <h2>{{ month_names[month - 1] }}</h2>
+        {% set rows = rows_by_month.get(month, []) %}
+        {% if rows %}
+        <table class="detail">
+            <thead>
+                <tr>
+                    <th>Kunde</th>
+                    <th>Anlass</th>
+                    <th>Zeitraum</th>
+                    <th>Status</th>
+                    <th>PAX Soll</th>
+                    <th>PAX Ist</th>
+                    <th>PAX Diff</th>
+                    <th>Tage</th>
+                    <th>Nächte</th>
+                    <th>PAX-Nächte</th>
+                    <th>Umsatz Soll</th>
+                    <th>Umsatz Ist</th>
+                    <th>Umsatz Diff</th>
+                    <th>Verkettung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.kunde }}</td>
+                    <td>{{ row.anlass }}</td>
+                    <td>{{ row.zeitraum }}</td>
+                    <td><span class="status status-{{ row.status }}">{{ row.status }}</span></td>
+                    <td>{{ row.pax_soll if row.pax_soll is not none else "" }}</td>
+                    <td>{{ row.pax_ist if row.pax_ist is not none else "" }}</td>
+                    <td>{{ row.pax_diff if row.pax_diff is not none else "" }}</td>
+                    <td>{{ "%.1f"|format(row.tage) }}</td>
+                    <td>{{ "%.1f"|format(row.naechte) }}</td>
+                    <td>{{ "%.1f"|format(row.pax_naechte) }}</td>
+                    <td>{{ "%.2f"|format(row.umsatz_soll) }}</td>
+                    <td>{{ "%.2f"|format(row.umsatz_ist) }}</td>
+                    <td class="{{ 'negative' if row.umsatz_diff < 0 else 'positive' }}">{{ "%.2f"|format(row.umsatz_diff) }}</td>
+                    <td><span class="linked-{{ row.linked_by }}">{{ row.linked_by }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Keine Buchungen.</p>
+        {% endif %}
+    </section>
+    {% endfor %}
+</body>
+</html>
