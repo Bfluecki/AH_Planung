@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,12 @@ from app.admin_config import get_effective_config
 from app.config import get_settings
 from app.db import get_db
 from app.domain.reporting import build_report
+from app.domain.soll_ist import (
+    STATUS_BEAUFTRAGT,
+    STATUS_NUR_ANGEBOT,
+    STATUS_STORNIERT,
+    STATUS_VERRECHNET,
+)
 
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -20,20 +26,42 @@ MONTH_NAMES_DE = [
     "Juli", "August", "September", "Oktober", "November", "Dezember",
 ]
 
+# Reihenfolge fuer die Filter-Checkboxen; Default zeigt nur verrechnete Buchungen,
+# die uebrigen Status sind ueber das Dropdown zuwaehlbar.
+ALL_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET, STATUS_STORNIERT]
+DEFAULT_STATUSES = [STATUS_VERRECHNET]
+
 
 @router.get("/")
-def dashboard(request: Request, year: int | None = None, db: Session = Depends(get_db)):
+def dashboard(
+    request: Request,
+    year: int | None = None,
+    status: list[str] = Query(default=DEFAULT_STATUSES),
+    db: Session = Depends(get_db),
+):
     settings = get_settings()
     effective = get_effective_config(db, settings)
     year = year or effective.current_planning_year
+    selected_statuses = set(status) or set(DEFAULT_STATUSES)
+
+    # Jahresuebersicht (Summen/Budget) bleibt bewusst ungefiltert - sie soll immer das
+    # Gesamtbild (Pipeline+Auftrag+Rechnung) zeigen. Der Status-Filter blendet nur
+    # einzelne Buchungszeilen in den Monatstabellen aus/ein.
     year_summary, rows_by_month = build_report(db, year, settings)
+    filtered_rows_by_month = {
+        month: [row for row in rows if row.status in selected_statuses]
+        for month, rows in rows_by_month.items()
+    }
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
             "year": year,
             "year_summary": year_summary,
-            "rows_by_month": rows_by_month,
+            "rows_by_month": filtered_rows_by_month,
             "month_names": MONTH_NAMES_DE,
+            "all_statuses": ALL_STATUSES,
+            "selected_statuses": selected_statuses,
         },
     )

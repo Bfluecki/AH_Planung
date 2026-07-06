@@ -41,6 +41,47 @@ nav a, nav .button, nav button {
 nav a.button, nav button { background: var(--color-accent); color: white; }
 .inline-form { display: inline; }
 
+nav .status-filter {
+    display: inline-block;
+    position: relative;
+    vertical-align: top;
+}
+nav .status-filter summary {
+    display: inline-block;
+    margin-right: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    background: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    list-style: none;
+}
+nav .status-filter summary::-webkit-details-marker { display: none; }
+nav .status-filter form {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 10;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+}
+nav .status-filter label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: normal;
+    padding: 0.2rem 0;
+    cursor: pointer;
+}
+nav .status-filter button {
+    margin-top: 0.5rem;
+}
+
 section { margin-bottom: 2rem; }
 
 table {

@@ -16,6 +16,19 @@
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
             <a href="/admin">Admin</a>
+            <details class="status-filter">
+                <summary>Status-Filter ({{ selected_statuses|length }})</summary>
+                <form action="/" method="get">
+                    <input type="hidden" name="year" value="{{ year }}">
+                    {% for s in all_statuses %}
+                    <label>
+                        <input type="checkbox" name="status" value="{{ s }}" {{ "checked" if s in selected_statuses else "" }}>
+                        {{ s }}
+                    </label>
+                    {% endfor %}
+                    <button type="submit">Anwenden</button>
+                </form>
+            </details>
         </nav>
     </header>
 
@@ -109,7 +122,7 @@
             </tbody>
         </table>
         {% else %}
-        <p class="empty">Keine Buchungen.</p>
+        <p class="empty">Keine Buchungen (mit aktuellem Status-Filter).</p>
         {% endif %}
     </section>
     {% endfor %}
