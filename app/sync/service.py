@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import re
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
@@ -60,8 +61,25 @@ _FIELD_CANDIDATES: dict[str, tuple[str, ...]] = {
     "product_code": ("intern_code", "code", "article_code"),
     "quantity": ("amount", "quantity"),
     "unit_price": ("unit_price",),
-    "position_total": ("total", "amount_net"),
+    # Bexio's tatsaechliches Feld fuer den Positions-Gesamtbetrag ist "position_total"
+    # (verifiziert gegen echte kb_position_article-Antworten, Konzept 9.1).
+    "position_total": ("position_total", "total", "amount_net"),
 }
+
+# Bexio traegt bei kb_position_article keinen eigenen Produktcode-Feld - der Code
+# steht als Freitext im (HTML-)Beschreibungsfeld "text", z.B.
+# "<strong>Fruehstueck</strong><br />Produktcode: AH-FRU<br />..." (verifiziert
+# gegen echte Positionsdaten, Konzept 9.1). _pick() bleibt als Fallback bestehen,
+# falls ein anderer Positionstyp den Code doch als eigenes Feld liefert.
+_PRODUCT_CODE_IN_TEXT_RE = re.compile(r"Produktcode:\s*([A-Za-z0-9\-]+)", re.IGNORECASE)
+
+
+def _extract_product_code(raw: dict) -> str | None:
+    text = raw.get("text") or ""
+    m = _PRODUCT_CODE_IN_TEXT_RE.search(text)
+    if m:
+        return m.group(1)
+    return _pick(raw, "product_code")
 
 
 def _pick(raw: dict, key: str, default=None):
@@ -280,7 +298,7 @@ def sync_line_items(client: BexioClient, db: Session, document_type: str, docume
                     position_bexio_id=pos.get("id"),
                 )
                 db.add(existing)
-            existing.product_code = _pick(pos, "product_code")
+            existing.product_code = _extract_product_code(pos)
             existing.description = pos.get("text", "") or pos.get("description", "")
             existing.quantity = _to_decimal(_pick(pos, "quantity"))
             existing.unit = pos.get("unit_id") and str(pos.get("unit_id"))

@@ -25,15 +25,21 @@ class ErtragsArt(str, Enum):
 PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "LH-UEB": ErtragsArt.UEBERNACHTUNG,
     "LH-UEB-EZU": ErtragsArt.UEBERNACHTUNG,  # Einzelzimmerzuschlag
+    "LH-UEB-DZ": ErtragsArt.UEBERNACHTUNG,  # Doppelzimmerzuschlag (Zusatzkosten pro Nacht)
     "AH-UEB-ANT": ErtragsArt.UEBERNACHTUNG,
     "AH-VLP": ErtragsArt.VERPFLEGUNG,  # Vollpension
-    "AH-MIT": ErtragsArt.VERPFLEGUNG,  # Mittagessen / Halbpension-Anteil
+    "AH-MIT": ErtragsArt.VERPFLEGUNG,  # Mittag- und Abendessen
+    "AH-FRU": ErtragsArt.VERPFLEGUNG,  # Fruehstueck
     "LH-KZA": ErtragsArt.RAUM,  # Kurszimmer/Anlass
     "AH-LH-REI": ErtragsArt.REINIGUNG,
     "KU-TXT": ErtragsArt.KURTAXE,
     "PZ": ErtragsArt.PARKPLATZ,
 }
 
+# Nur Codes, deren Menge tatsaechlich die Anzahl Uebernachtungen darstellt (fuer die
+# Naechte/PAX-Naechte-Berechnung, siehe app/domain/allocation.py). LH-UEB-DZ etc. sind
+# Zuschlaege "pro Nacht" und wuerden die Naechte doppelt zaehlen, wenn sie hier
+# mitgezaehlt wuerden - sie fliessen nur ueber PRODUCT_CODE_MAP in den Umsatz ein.
 NIGHT_RELEVANT_CODES = {
     "LH-UEB",
     "LH-UEB-EZU",
