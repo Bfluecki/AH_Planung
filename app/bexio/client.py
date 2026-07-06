@@ -204,6 +204,18 @@ class BexioClient:
     def list_contacts(self) -> Iterator[dict]:
         yield from self.paginate("/2.0/contact")
 
+    def get_contact(self, contact_id: int) -> dict | None:
+        """Einzelnen Kontakt nachladen (z.B. archivierte/geloeschte Kontakte, die der
+        Listen-Endpunkt /2.0/contact nicht zurueckliefert, aber noch von einem
+        Auftrag/einer Rechnung referenziert werden). None bei 404."""
+        try:
+            response = self._request("GET", f"/2.0/contact/{contact_id}")
+        except BexioApiError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
+        return response.json()
+
     def list_quotes(self) -> Iterator[dict]:
         yield from self.paginate("/2.0/kb_offer")
 

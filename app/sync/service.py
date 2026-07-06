@@ -95,24 +95,60 @@ def _to_date(value) -> dt.date | None:
 # ----------------------------------------------------------------------
 # Rohdaten-Sync (Konzept Abschnitt 6, "Sync-Scheduler")
 # ----------------------------------------------------------------------
+def _upsert_contact(db: Session, raw: dict) -> Contact:
+    contact = db.get(Contact, raw["id"])
+    if contact is None:
+        contact = Contact(id=raw["id"])
+        db.add(contact)
+    contact.contact_nr = str(raw.get("nr") or raw.get("contact_nr") or "")
+    name_parts = [raw.get("name_1", ""), raw.get("name_2", "")]
+    contact.name = " ".join(p for p in name_parts if p) or raw.get("name", "")
+    contact.raw = raw
+    contact.synced_at = dt.datetime.now(dt.timezone.utc)
+    return contact
+
+
 def sync_contacts(client: BexioClient, db: Session) -> int:
     count = 0
     for raw in client.list_contacts():
-        contact = db.get(Contact, raw["id"])
-        if contact is None:
-            contact = Contact(id=raw["id"])
-            db.add(contact)
-        contact.contact_nr = str(raw.get("nr") or raw.get("contact_nr") or "")
-        name_parts = [raw.get("name_1", ""), raw.get("name_2", "")]
-        contact.name = " ".join(p for p in name_parts if p) or raw.get("name", "")
-        contact.raw = raw
-        contact.synced_at = dt.datetime.now(dt.timezone.utc)
+        _upsert_contact(db, raw)
         count += 1
     db.commit()
     return count
 
 
-def sync_quotes(client: BexioClient, db: Session) -> int:
+def _ensure_contact_exists(
+    client: BexioClient, db: Session, contact_id: int | None, missing_contact_ids: set[int]
+) -> int | None:
+    """Stellt sicher, dass ein von einem Dokument referenzierter Kontakt lokal existiert,
+    bevor er als contact_id (FK) gesetzt wird. Bexio's Listen-Endpunkt /2.0/contact
+    liefert nicht zwingend archivierte/geloeschte Kontakte zurueck, die aber noch von
+    einem alten Auftrag/einer Rechnung referenziert werden koennen - solche IDs werden
+    hier gezielt einzeln nachgeladen. Existiert der Kontakt tatsaechlich nicht mehr,
+    wird die Referenz auf None gesetzt statt die ganze Sync mit einer
+    ForeignKeyViolation abzubrechen."""
+    if contact_id is None:
+        return None
+    if contact_id in missing_contact_ids:
+        return None
+    if db.get(Contact, contact_id) is not None:
+        return contact_id
+
+    raw = client.get_contact(contact_id)
+    if raw is None:
+        logger.warning(
+            "Kontakt %s wird von einem Dokument referenziert, existiert aber nicht "
+            "(mehr) in Bexio - Referenz wird auf NULL gesetzt.", contact_id
+        )
+        missing_contact_ids.add(contact_id)
+        return None
+
+    _upsert_contact(db, raw)
+    db.flush()  # Kontakt muss vor dem Dokument-Insert/Commit in der DB sichtbar sein
+    return contact_id
+
+
+def sync_quotes(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
     for raw in client.list_quotes():
         row = db.get(Quote, raw["id"])
@@ -120,7 +156,7 @@ def sync_quotes(client: BexioClient, db: Session) -> int:
             row = Quote(id=raw["id"])
             db.add(row)
         row.document_nr = str(_pick(raw, "document_nr", ""))
-        row.contact_id = _pick(raw, "contact_id")
+        row.contact_id = _ensure_contact_exists(client, db, _pick(raw, "contact_id"), missing_contact_ids)
         row.title = _pick(raw, "title", "")
         row.quote_date = _to_date(_pick(raw, "date"))
         row.valid_until = _to_date(_pick(raw, "due_or_valid_until"))
@@ -133,7 +169,7 @@ def sync_quotes(client: BexioClient, db: Session) -> int:
     return count
 
 
-def sync_orders(client: BexioClient, db: Session) -> int:
+def sync_orders(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
     for raw in client.list_orders():
         row = db.get(Order, raw["id"])
@@ -141,7 +177,7 @@ def sync_orders(client: BexioClient, db: Session) -> int:
             row = Order(id=raw["id"])
             db.add(row)
         row.document_nr = str(_pick(raw, "document_nr", ""))
-        row.contact_id = _pick(raw, "contact_id")
+        row.contact_id = _ensure_contact_exists(client, db, _pick(raw, "contact_id"), missing_contact_ids)
         row.title = _pick(raw, "title", "")
         row.order_date = _to_date(_pick(raw, "date"))
         row.total = _to_decimal(_pick(raw, "total"))
@@ -153,7 +189,7 @@ def sync_orders(client: BexioClient, db: Session) -> int:
     return count
 
 
-def sync_invoices(client: BexioClient, db: Session) -> int:
+def sync_invoices(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
     for raw in client.list_invoices():
         row = db.get(Invoice, raw["id"])
@@ -161,7 +197,7 @@ def sync_invoices(client: BexioClient, db: Session) -> int:
             row = Invoice(id=raw["id"])
             db.add(row)
         row.document_nr = str(_pick(raw, "document_nr", ""))
-        row.contact_id = _pick(raw, "contact_id")
+        row.contact_id = _ensure_contact_exists(client, db, _pick(raw, "contact_id"), missing_contact_ids)
         row.title = _pick(raw, "title", "")
         row.invoice_date = _to_date(_pick(raw, "date"))
         row.payment_date = _to_date(_pick(raw, "payment_date"))
@@ -174,7 +210,7 @@ def sync_invoices(client: BexioClient, db: Session) -> int:
     return count
 
 
-def sync_credit_notes(client: BexioClient, db: Session) -> int:
+def sync_credit_notes(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
     for raw in client.list_credit_notes():
         row = db.get(CreditNote, raw["id"])
@@ -182,7 +218,7 @@ def sync_credit_notes(client: BexioClient, db: Session) -> int:
             row = CreditNote(id=raw["id"])
             db.add(row)
         row.document_nr = str(_pick(raw, "document_nr", ""))
-        row.contact_id = _pick(raw, "contact_id")
+        row.contact_id = _ensure_contact_exists(client, db, _pick(raw, "contact_id"), missing_contact_ids)
         row.title = _pick(raw, "title", "")
         row.credit_note_date = _to_date(_pick(raw, "date"))
         row.total = _to_decimal(_pick(raw, "total"))
@@ -246,13 +282,14 @@ def full_sync(db: Session, settings: Settings | None = None) -> dict:
     """Kompletter Sync-Lauf: Rohdaten laden, Positionen laden, Bookings neu berechnen."""
     settings = settings or get_settings()
     client = BexioClient(db, settings)
+    missing_contact_ids: set[int] = set()
 
     stats = {
         "contacts": sync_contacts(client, db),
-        "quotes": sync_quotes(client, db),
-        "orders": sync_orders(client, db),
-        "invoices": sync_invoices(client, db),
-        "credit_notes": sync_credit_notes(client, db),
+        "quotes": sync_quotes(client, db, missing_contact_ids),
+        "orders": sync_orders(client, db, missing_contact_ids),
+        "invoices": sync_invoices(client, db, missing_contact_ids),
+        "credit_notes": sync_credit_notes(client, db, missing_contact_ids),
     }
     stats["quote_positions"] = sync_line_items(
         client, db, "quote", [q.id for q in db.query(Quote.id)]
