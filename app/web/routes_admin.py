@@ -113,7 +113,6 @@ def admin_debug_line_items(
     items = (
         db.query(LineItem)
         .filter_by(document_type=document_type)
-        .filter(LineItem.total > 0)
         .order_by(LineItem.id.desc())
         .limit(limit)
         .all()
