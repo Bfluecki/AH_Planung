@@ -51,8 +51,11 @@ _FIELD_CANDIDATES: dict[str, tuple[str, ...]] = {
     "title": ("title", "header", "name"),
     "contact_id": ("contact_id",),
     "date": ("date", "is_valid_from", "created_at"),
-    "due_or_valid_until": ("valid_until", "is_valid_until", "due_date"),
-    "total": ("total_gross", "total", "total_net"),
+    "due_or_valid_until": ("valid_until", "is_valid_until", "is_valid_to", "due_date"),
+    # Bexio liefert total_gross/total_net/total_taxes getrennt (verifiziert gegen
+    # echte kb_invoice-Antworten, Konzept 9.1); "total" ist dort identisch zu
+    # total_gross. Umsatz soll ohne MwSt ausgewiesen werden -> total_net zuerst.
+    "total": ("total_net", "total", "total_gross"),
     "source_quote_id": ("kb_offer_id", "quote_id", "copied_from_offer_id"),
     "source_order_id": ("kb_order_id", "order_id", "copied_from_order_id"),
     "reference_invoice_id": ("kb_invoice_id", "invoice_id", "reference_id"),

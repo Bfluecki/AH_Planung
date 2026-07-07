@@ -7,7 +7,7 @@ from decimal import Decimal
 from app.bexio.client import BexioApiError
 from app.db import Base
 from app.models import LineItem
-from app.sync.service import _document_metrics, _extract_product_code, sync_credit_notes
+from app.sync.service import _document_metrics, _extract_product_code, _pick, sync_credit_notes
 
 
 @pytest.fixture
@@ -78,6 +78,23 @@ def test_extract_product_code_with_dots_and_spaces():
 def test_extract_product_code_with_plus_sign():
     raw = {"text": "Produktcode: AH-SEM-PAU+<br />"}
     assert _extract_product_code(raw) == "AH-SEM-PAU+"
+
+
+def test_document_total_prefers_net_over_gross():
+    # Echte kb_invoice-Antwort: total_gross/total sind identisch (inkl. MwSt),
+    # total_net ist der Betrag ohne MwSt - Umsatz soll netto ausgewiesen werden.
+    raw = {
+        "total_gross": "2999.000000",
+        "total_net": "2823.900000",
+        "total_taxes": "175.1010",
+        "total": "2999.000000",
+    }
+    assert _pick(raw, "total") == "2823.900000"
+
+
+def test_document_total_falls_back_to_gross_when_net_missing():
+    raw = {"total_gross": "1000.00", "total": "1000.00"}
+    assert _pick(raw, "total") == "1000.00"
 
 
 def test_pax_is_derived_from_base_night_quantity_when_no_pax_field(db_session):
