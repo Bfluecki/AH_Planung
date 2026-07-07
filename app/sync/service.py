@@ -494,7 +494,7 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
                     service_end=service_end,
                     revenue=booking_metrics.umsatz_soll,
                     pax=booking_metrics.pax_soll,
-                    nights=booking_metrics.nights_soll,
+                    pax_nights=booking_metrics.nights_soll,
                 ),
                 mode=effective.allocation_mode,
             )
@@ -504,7 +504,7 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
                     service_end=service_end,
                     revenue=booking_metrics.umsatz_ist,
                     pax=booking_metrics.pax_ist,
-                    nights=booking_metrics.nights_ist,
+                    pax_nights=booking_metrics.nights_ist,
                 ),
                 mode=effective.allocation_mode,
             )

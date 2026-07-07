@@ -234,6 +234,10 @@ class Booking(Base):
     pax_soll: Mapped[int | None] = mapped_column(nullable=True)
     pax_ist: Mapped[int | None] = mapped_column(nullable=True)
 
+    # Achtung: hier auf Buchungsebene sind das PAX-Naechte (Bexio-Positionsmenge,
+    # bereits Personen x Naechte) - reiner Zwischenwert fuer die Monatsverteilung
+    # (app/domain/allocation.py). Die physischen (Kalender-)Naechte je Monat landen
+    # erst in MonthlyAllocation.nights_soll/ist weiter unten.
     nights_soll: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
     nights_ist: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
 
@@ -276,6 +280,8 @@ class MonthlyAllocation(Base):
     year: Mapped[int] = mapped_column()
     month: Mapped[int] = mapped_column()  # 1-12
 
+    # Physische (Kalender-)Naechte, die in diesen Monat fallen - unabhaengig von PAX.
+    # Fuer PAX-Naechte (Personen x Naechte) siehe pax_nights_soll/ist weiter unten.
     nights_soll: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
     nights_ist: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
     days: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))

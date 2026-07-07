@@ -1,11 +1,20 @@
-"""Periodengerechte Verteilung von Umsatz/Naechten/PAX auf Leistungsmonate.
+"""Periodengerechte Verteilung von Umsatz/Naechten/PAX-Naechten auf Leistungsmonate.
 
 Siehe Konzept Abschnitt 3 ("Abgrenzungslogik"). Zwei Modi:
 
 - "full_month": die ganze Buchung wird dem Monat von service_start zugeordnet.
-- "prorata" (Default/empfohlen): Umsatz und Naechte werden auf Basis der
+- "prorata" (Default/empfohlen): Umsatz und PAX-Naechte werden auf Basis der
   tatsaechlichen Naechte je Kalendermonat verteilt. Reine Tagesanlaesse ohne
   Uebernachtung (Konzept 9.6) werden stattdessen ueber die Kalendertage verteilt.
+
+Wichtige Unterscheidung (siehe auch Konzept Abschnitt 3, "PAX-Naechte"):
+- "Naechte" = physische Aufenthaltsdauer (Kalendernaechte), unabhaengig von der
+  Personenzahl - z.B. 4 Naechte, egal ob 1 oder 40 Personen da waren.
+- "PAX-Naechte" = die von Bexio gelieferte Positionsmenge (Produktcode LH-UEB etc.,
+  "pro Person und Nacht"), also bereits Personen x Naechte, z.B. 16 fuer 4 Personen
+  ueber 4 Naechte.
+Beide werden getrennt gefuehrt; PAX-Naechte werden NICHT nochmals mit PAX
+multipliziert (das waere PAX², ein frueherer Bug).
 """
 from __future__ import annotations
 
@@ -25,18 +34,19 @@ class AllocationInput:
     service_end: dt.date
     revenue: Decimal
     pax: int | None = None
-    # Gesamtzahl Naechte des Aufenthalts (aus Positionsmengen, z.B. "59.00 Uebernachtungen").
-    # None/0 => Tagesanlass ohne Uebernachtung, es wird ueber Tage statt Naechte verteilt.
-    nights: Decimal | None = None
+    # PAX-Naechte = Bexio-Positionsmenge fuer Uebernachtungsprodukte (bereits
+    # Personen x Naechte, z.B. "16.00 Uebernachtungen"). None/0 => Tagesanlass ohne
+    # Uebernachtung, es wird ueber Tage statt Naechte verteilt.
+    pax_nights: Decimal | None = None
 
 
 @dataclass
 class MonthShare:
     year: int
     month: int
-    nights: Decimal
+    nights: Decimal  # physische Naechte in diesem Monat (unabhaengig von PAX)
     days: Decimal
-    pax_nights: Decimal
+    pax_nights: Decimal  # anteilige PAX-Naechte in diesem Monat
     revenue: Decimal
 
 
@@ -61,68 +71,68 @@ def allocate(inp: AllocationInput, mode: str = ALLOCATION_MODE_PRORATA) -> list[
     if end < start:
         start, end = end, start
 
+    stay_nights = max((end - start).days, 0)
+
     if mode == ALLOCATION_MODE_FULL_MONTH:
-        pax_nights = Decimal(inp.pax or 0) * (inp.nights or Decimal("0"))
         return [
             MonthShare(
                 year=start.year,
                 month=start.month,
-                nights=inp.nights or Decimal("0"),
+                nights=Decimal(stay_nights),
                 days=Decimal((end - start).days + 1),
-                pax_nights=pax_nights,
+                pax_nights=inp.pax_nights or Decimal("0"),
                 revenue=inp.revenue,
             )
         ]
 
-    has_nights = inp.nights is not None and inp.nights > 0
+    has_nights = inp.pax_nights is not None and inp.pax_nights > 0
     months = _month_sequence(start, end)
     if not months:
         return []
 
     if has_nights:
         # Naechte werden dem Datum ihres Beginns zugeordnet: Nacht 1 = [start, start+1), etc.
-        # Damit koennen wir die Gesamt-Naechte (aus Positionsmengen) proportional zur
-        # rechnerischen Aufenthaltsdauer auf die ueberlappenden Monate aufteilen.
-        stay_nights = max((end - start).days, 1)
+        # Die physische Naechte-Anzahl je Monat dient als Gewicht, um sowohl die
+        # PAX-Naechte als auch den Umsatz proportional auf die ueberlappenden Monate
+        # zu verteilen (Kalender-Gewichtung ist unabhaengig davon, ob man PAX-Naechte
+        # oder physische Naechte verteilt - die Anteile pro Monat sind identisch).
+        effective_stay_nights = max(stay_nights, 1)
         shares: list[MonthShare] = []
-        total_weight = Decimal("0")
-        weights: list[Decimal] = []
+        total_weight = 0
+        weights: list[int] = []
         for year, month in months:
-            # Anzahl Naechte, deren Startdatum in diesem Monat liegt.
             night_dates_in_month = 0
             cursor = start
-            for _ in range(stay_nights):
+            for _ in range(effective_stay_nights):
                 if cursor.year == year and cursor.month == month:
                     night_dates_in_month += 1
                 cursor += dt.timedelta(days=1)
-            weight = Decimal(night_dates_in_month)
-            weights.append(weight)
-            total_weight += weight
+            weights.append(night_dates_in_month)
+            total_weight += night_dates_in_month
 
         if total_weight == 0:
-            total_weight = Decimal(1)
-            weights = [Decimal(1)] + [Decimal(0)] * (len(months) - 1)
+            total_weight = 1
+            weights = [1] + [0] * (len(months) - 1)
 
         allocated_revenue_sum = Decimal("0")
-        allocated_nights_sum = Decimal("0")
+        allocated_pax_nights_sum = Decimal("0")
         for idx, (year, month) in enumerate(months):
             weight = weights[idx]
-            fraction = weight / total_weight
-            month_nights = (inp.nights * fraction).quantize(Decimal("0.01"))
+            fraction = Decimal(weight) / Decimal(total_weight)
+            month_pax_nights = (inp.pax_nights * fraction).quantize(Decimal("0.01"))
             month_revenue = (inp.revenue * fraction).quantize(Decimal("0.01"))
-            allocated_nights_sum += month_nights
+            allocated_pax_nights_sum += month_pax_nights
             allocated_revenue_sum += month_revenue
             days = Decimal(days_in_month_overlap(start, end, year, month))
-            pax_nights = Decimal(inp.pax or 0) * month_nights
             shares.append(
                 MonthShare(
-                    year=year, month=month, nights=month_nights, days=days,
-                    pax_nights=pax_nights, revenue=month_revenue,
+                    year=year, month=month, nights=Decimal(weight), days=days,
+                    pax_nights=month_pax_nights, revenue=month_revenue,
                 )
             )
         # Rundungsdifferenz dem letzten Monat zuschlagen, damit Summe exakt stimmt.
         if shares:
-            shares[-1].nights += inp.nights - allocated_nights_sum
+            shares[-1].pax_nights += inp.pax_nights - allocated_pax_nights_sum
             shares[-1].revenue += inp.revenue - allocated_revenue_sum
         return shares
 
