@@ -68,6 +68,18 @@ def test_extract_product_code_falls_back_when_no_text_match():
     assert _extract_product_code({}) is None
 
 
+def test_extract_product_code_decodes_html_entities():
+    # Echter Fund: "AH-K&uuml;che" statt "AH-Küche" landete unentschluesselt als
+    # eigener "unbekannter" Produktcode im Report.
+    raw = {"text": "Produktcode: AH-K&uuml;che<br />"}
+    assert _extract_product_code(raw) == "AH-Küche"
+
+
+def test_extract_product_code_ignores_nbsp_only_match():
+    # "Produktcode: &nbsp;" darf nicht als eigener Pseudo-Code durchgehen.
+    assert _extract_product_code({"text": "Produktcode: &nbsp;<br />"}) is None
+
+
 def test_extract_product_code_with_dots_and_spaces():
     # Getraenke-Codes aus dem echten Produktkatalog enthalten Punkte/Leerzeichen,
     # die im urspruenglichen [A-Za-z0-9-]-Muster abgeschnitten wurden.

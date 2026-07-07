@@ -30,6 +30,14 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "LH-UEB-EZU": ErtragsArt.UEBERNACHTUNG,  # Einzelzimmerzuschlag (Zusatzkosten pro Nacht)
     "LH-UEB-DZ": ErtragsArt.UEBERNACHTUNG,  # Doppelzimmerzuschlag (Zusatzkosten pro Nacht)
     "LH-KZA": ErtragsArt.UEBERNACHTUNG,  # Kurzaufenthalt, pro Person und Nacht
+    # BB-UEB taucht in echten Rechnungen auf, ist aber NICHT im Produktkatalog-Export
+    # gelistet (evtl. ein drittes Gebaeude/Standort neben Aarbergerhus/Louishaus).
+    # Ertragsart nach Namenskonvention (Analogie zu LH-UEB) eingestuft - wirkt sich
+    # nicht auf den Umsatz aus. Bewusst NICHT in NIGHT_RELEVANT_CODES unten
+    # aufgenommen, bis verifiziert ist, dass "pro Person und Nacht" abgerechnet wird
+    # wie bei LH-UEB - sonst wuerde eine falsche Annahme die Naechte-/PAX-Zahlen
+    # verfaelschen.
+    "BB-UEB": ErtragsArt.UEBERNACHTUNG,
     "KU-TXT": ErtragsArt.KURTAXE,
 
     # Verpflegung
@@ -53,6 +61,13 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "SCHOR": ErtragsArt.VERPFLEGUNG,  # Traubenschorle
     "AH-RW": ErtragsArt.VERPFLEGUNG,  # Weinspezialitaet
     "AH ZAPFGELD": ErtragsArt.VERPFLEGUNG,
+    "AH-CKU": ErtragsArt.VERPFLEGUNG,  # Cellokurs inkl. Verpflegung (Bexio-Gruppe Verpflegung)
+    "AH-SEM-PAU15": ErtragsArt.VERPFLEGUNG,  # Seminarpauschale 10-15 Pers. (inkl. Mittagessen)
+    "AH-SEM-PAU+": ErtragsArt.VERPFLEGUNG,  # Seminarpauschale ab 15 Pers. (inkl. Mittagessen)
+    "AH-GET": ErtragsArt.VERPFLEGUNG,  # Getraenke (nicht im Katalog gelistet, aus echten Rechnungen)
+    "MIN": ErtragsArt.VERPFLEGUNG,  # Mineralwasser (Kurzform)
+    "WW": ErtragsArt.VERPFLEGUNG,  # Weisswein (Kurzform)
+    "RW": ErtragsArt.VERPFLEGUNG,  # Rotwein (Kurzform)
 
     # Raum (Bexio-Hauptgruppe "Raummieten")
     "AH-UEB-ANT": ErtragsArt.RAUM,  # Anteil Raumnutzung, pro Person und Tag (kein Uebernachtungsprodukt)
@@ -64,6 +79,8 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "AH-KON-GT": ErtragsArt.RAUM,  # Konzertsaal ganzer Tag
     "AH-KON-HT": ErtragsArt.RAUM,  # Konzertsaal halber Tag
     "FK": ErtragsArt.RAUM,  # Fotokopie (Bexio-Gruppe Raummieten/Erweiterte Infrastruktur)
+    "AH-SKO-PAU": ErtragsArt.RAUM,  # Selbstkocherpauschale
+    "AH-KÜCHE": ErtragsArt.RAUM,  # Kuechennutzung (nicht im Katalog gelistet)
     "PZ": ErtragsArt.PARKPLATZ,
 
     # Reinigung

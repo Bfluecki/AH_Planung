@@ -9,6 +9,7 @@ in der `raw`-Spalte gespeichert, sodass nichts verloren geht, falls ein Feld hie
 from __future__ import annotations
 
 import datetime as dt
+import html
 import logging
 import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -84,7 +85,12 @@ def _extract_product_code(raw: dict) -> str | None:
     text = raw.get("text") or ""
     m = _PRODUCT_CODE_IN_TEXT_RE.search(text)
     if m:
-        return m.group(1).strip()
+        # HTML-Entities auflösen (z.B. "&uuml;" -> "ü") und Nicht-Break-Space (aus
+        # "&nbsp;") mitentfernen - sonst landen kaputte Pseudo-Codes wie "AH-K&uuml;che"
+        # oder ein blankes "&nbsp;" als eigene "unbekannte" Produktcodes im Report.
+        code = html.unescape(m.group(1)).strip()
+        if code:
+            return code
     return _pick(raw, "product_code")
 
 

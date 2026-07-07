@@ -56,3 +56,28 @@ def test_beverage_and_room_codes_from_catalog():
     assert ertragsart_fuer("0.5 PN") == ErtragsArt.VERPFLEGUNG  # Pinot Noir 5dl
     assert ertragsart_fuer("AH-RAU-GT") == ErtragsArt.RAUM
     assert ertragsart_fuer("LH-REI") == ErtragsArt.REINIGUNG
+
+
+def test_codes_found_via_product_summary_debug_endpoint():
+    # Materielle Betraege aus dem /admin/debug/product-summary-Report, die zuvor
+    # unter "sonstiges" liefen (Konzept: Bundles/Pauschalen und nicht im Katalog
+    # gelistete Codes).
+    assert ertragsart_fuer("AH-CKU") == ErtragsArt.VERPFLEGUNG  # Cellokurs inkl. Verpflegung
+    assert ertragsart_fuer("AH-SEM-PAU15") == ErtragsArt.VERPFLEGUNG
+    assert ertragsart_fuer("AH-SKO-PAU") == ErtragsArt.RAUM  # Selbstkocherpauschale
+    assert ertragsart_fuer("AH-GET") == ErtragsArt.VERPFLEGUNG  # Getraenke, nicht im Katalog
+    assert ertragsart_fuer("AH-Küche") == ErtragsArt.RAUM  # nicht im Katalog
+    assert ertragsart_fuer("MIN") == ErtragsArt.VERPFLEGUNG
+    assert ertragsart_fuer("WW") == ErtragsArt.VERPFLEGUNG
+    assert ertragsart_fuer("RW") == ErtragsArt.VERPFLEGUNG
+
+
+def test_bb_ueb_categorized_but_not_counted_as_night_pending_confirmation():
+    # BB-UEB ist NICHT im Produktkatalog gelistet, taucht aber in echten Rechnungen
+    # auf - per Namenskonvention (Analogie zu LH-UEB) als Ertragsart Uebernachtung
+    # eingestuft (wirkt sich nicht auf den Umsatz aus). Bewusst NICHT in
+    # NIGHT_RELEVANT_CODES aufgenommen, bis verifiziert ist, dass die Abrechnung
+    # tatsaechlich "pro Person und Nacht" erfolgt wie bei LH-UEB - sonst wuerde eine
+    # falsche Annahme die Naechte-/PAX-Zahlen verfaelschen.
+    assert ertragsart_fuer("BB-UEB") == ErtragsArt.UEBERNACHTUNG
+    assert ist_uebernachtung("BB-UEB") is False
