@@ -55,6 +55,28 @@ def test_year_summary_totals():
     assert year_summary.budget == Decimal("28333.30") * 12
 
 
+def test_year_summary_nights_totals():
+    figures = [
+        MonthlyFigure(year=2026, month=1, nights_soll=Decimal("5"), nights_ist=Decimal("4")),
+        MonthlyFigure(year=2026, month=2, nights_soll=Decimal("3"), nights_ist=Decimal("3")),
+    ]
+    year_summary = aggregate_year(figures, 2026, monthly_budget=Decimal("1000"))
+    assert year_summary.nights_soll == Decimal("8")
+    assert year_summary.nights_ist == Decimal("7")
+
+
+def test_year_summary_pax_nights_totals():
+    # PAX-Naechte (Bexio-Menge "Uebernachtungen") unterscheiden sich typischerweise
+    # von Soll zu Ist, wenn weniger Teilnehmer effektiv da waren als gebucht.
+    figures = [
+        MonthlyFigure(year=2026, month=1, pax_nights_soll=Decimal("20"), pax_nights_ist=Decimal("16")),
+        MonthlyFigure(year=2026, month=2, pax_nights_soll=Decimal("12"), pax_nights_ist=Decimal("12")),
+    ]
+    year_summary = aggregate_year(figures, 2026, monthly_budget=Decimal("1000"))
+    assert year_summary.pax_nights_soll == Decimal("32")
+    assert year_summary.pax_nights_ist == Decimal("28")
+
+
 def test_vorjahresvergleich_pct():
     figures = [MonthlyFigure(year=2026, month=6, umsatz_ist=Decimal("500"))]
     year_summary = aggregate_year(

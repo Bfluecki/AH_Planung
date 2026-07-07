@@ -39,7 +39,8 @@
                 <tr>
                     <th>Monat</th>
                     <th>Tage</th>
-                    <th>Übernachtungen</th>
+                    <th>Übernachtung Soll<br><small>(bestellt)</small></th>
+                    <th>Übernachtung Ist<br><small>(tatsächlich)</small></th>
                     <th>Umsatz Soll</th>
                     <th>Umsatz Ist</th>
                     <th>Budget</th>
@@ -52,7 +53,8 @@
                 <tr>
                     <td><a href="#monat-{{ m.month }}">{{ month_names[m.month - 1] }}</a></td>
                     <td>{{ m.days|swissnum(1) }}</td>
-                    <td>{{ m.nights_ist|swissnum(1) }}</td>
+                    <td>{{ m.pax_nights_soll|swissnum(1) }}</td>
+                    <td>{{ m.pax_nights_ist|swissnum(1) }}</td>
                     <td>{{ m.umsatz_soll|swissnum }}</td>
                     <td>{{ m.umsatz_ist|swissnum }}</td>
                     <td>
@@ -75,7 +77,8 @@
                 <tr>
                     <td>Jahr total</td>
                     <td></td>
-                    <td></td>
+                    <td>{{ year_summary.pax_nights_soll|swissnum(1) }}</td>
+                    <td>{{ year_summary.pax_nights_ist|swissnum(1) }}</td>
                     <td>{{ year_summary.umsatz_soll|swissnum }}</td>
                     <td>{{ year_summary.umsatz_ist|swissnum }}</td>
                     <td>{{ year_summary.budget|swissnum }}</td>

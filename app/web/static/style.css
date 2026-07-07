@@ -123,6 +123,7 @@ thead th {
     background: var(--color-accent);
     color: white;
 }
+thead th small { font-weight: normal; opacity: 0.85; }
 
 tfoot td { font-weight: bold; background: #e8edf2; }
 

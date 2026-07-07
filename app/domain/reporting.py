@@ -96,6 +96,8 @@ def build_report(
             month=a.month,
             nights_soll=a.nights_soll,
             nights_ist=a.nights_ist,
+            pax_nights_soll=a.pax_nights_soll,
+            pax_nights_ist=a.pax_nights_ist,
             days=a.days,
             umsatz_soll=a.umsatz_soll,
             umsatz_ist=a.umsatz_ist,

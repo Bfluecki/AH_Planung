@@ -11,8 +11,10 @@ class MonthlyFigure:
 
     year: int
     month: int
-    nights_soll: Decimal = Decimal("0")
+    nights_soll: Decimal = Decimal("0")  # physische Naechte (Kalenderdatum-basiert)
     nights_ist: Decimal = Decimal("0")
+    pax_nights_soll: Decimal = Decimal("0")  # Bexio-Menge "Uebernachtungen" (Personen x Naechte)
+    pax_nights_ist: Decimal = Decimal("0")
     days: Decimal = Decimal("0")
     umsatz_soll: Decimal = Decimal("0")
     umsatz_ist: Decimal = Decimal("0")
@@ -24,6 +26,8 @@ class MonthSummary:
     month: int
     nights_soll: Decimal = Decimal("0")
     nights_ist: Decimal = Decimal("0")
+    pax_nights_soll: Decimal = Decimal("0")
+    pax_nights_ist: Decimal = Decimal("0")
     days: Decimal = Decimal("0")
     umsatz_soll: Decimal = Decimal("0")
     umsatz_ist: Decimal = Decimal("0")
@@ -59,6 +63,22 @@ class YearSummary:
     @property
     def umsatz_ist(self) -> Decimal:
         return sum((m.umsatz_ist for m in self.months), Decimal("0"))
+
+    @property
+    def nights_soll(self) -> Decimal:
+        return sum((m.nights_soll for m in self.months), Decimal("0"))
+
+    @property
+    def nights_ist(self) -> Decimal:
+        return sum((m.nights_ist for m in self.months), Decimal("0"))
+
+    @property
+    def pax_nights_soll(self) -> Decimal:
+        return sum((m.pax_nights_soll for m in self.months), Decimal("0"))
+
+    @property
+    def pax_nights_ist(self) -> Decimal:
+        return sum((m.pax_nights_ist for m in self.months), Decimal("0"))
 
     @property
     def budget(self) -> Decimal:
@@ -99,6 +119,8 @@ def aggregate_year(
         summary = by_month[fig.month]
         summary.nights_soll += fig.nights_soll
         summary.nights_ist += fig.nights_ist
+        summary.pax_nights_soll += fig.pax_nights_soll
+        summary.pax_nights_ist += fig.pax_nights_ist
         summary.days += fig.days
         summary.umsatz_soll += fig.umsatz_soll
         summary.umsatz_ist += fig.umsatz_ist
