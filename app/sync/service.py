@@ -71,14 +71,17 @@ _FIELD_CANDIDATES: dict[str, tuple[str, ...]] = {
 # "<strong>Fruehstueck</strong><br />Produktcode: AH-FRU<br />..." (verifiziert
 # gegen echte Positionsdaten, Konzept 9.1). _pick() bleibt als Fallback bestehen,
 # falls ein anderer Positionstyp den Code doch als eigenes Feld liefert.
-_PRODUCT_CODE_IN_TEXT_RE = re.compile(r"Produktcode:\s*([A-Za-z0-9\-]+)", re.IGNORECASE)
+# Faengt bis zum naechsten HTML-Tag/Zeilenumbruch ein, nicht nur [A-Za-z0-9-]:
+# einige echte Codes enthalten Punkte, Leerzeichen oder ein "+" (z.B. "0.5 PN",
+# "AH-SEM-PAU+"), siehe Produktkatalog-Export.
+_PRODUCT_CODE_IN_TEXT_RE = re.compile(r"Produktcode:\s*([^<\r\n]+)", re.IGNORECASE)
 
 
 def _extract_product_code(raw: dict) -> str | None:
     text = raw.get("text") or ""
     m = _PRODUCT_CODE_IN_TEXT_RE.search(text)
     if m:
-        return m.group(1)
+        return m.group(1).strip()
     return _pick(raw, "product_code")
 
 

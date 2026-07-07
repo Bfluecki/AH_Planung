@@ -41,7 +41,7 @@ nav a, nav .button, nav button {
 nav a.button, nav button { background: var(--color-accent); color: white; }
 .inline-form { display: inline; }
 
-.budget-form { display: flex; gap: 0.3rem; align-items: center; }
+.budget-form { display: flex; gap: 0.3rem; align-items: center; justify-content: flex-end; }
 .budget-form input[type="text"] {
     width: 6rem;
     padding: 0.15rem 0.3rem;
@@ -111,6 +111,11 @@ table {
 th, td {
     border: 1px solid var(--color-border);
     padding: 0.35rem 0.6rem;
+    text-align: right;
+}
+
+th:nth-child(1), th:nth-child(2), th:nth-child(3), th:nth-child(4),
+td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(4) {
     text-align: left;
 }
 

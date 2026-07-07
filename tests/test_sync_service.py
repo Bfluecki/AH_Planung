@@ -68,6 +68,18 @@ def test_extract_product_code_falls_back_when_no_text_match():
     assert _extract_product_code({}) is None
 
 
+def test_extract_product_code_with_dots_and_spaces():
+    # Getraenke-Codes aus dem echten Produktkatalog enthalten Punkte/Leerzeichen,
+    # die im urspruenglichen [A-Za-z0-9-]-Muster abgeschnitten wurden.
+    raw = {"text": "<strong>Pinot Noir</strong><br />Produktcode: 0.5 PN<br />"}
+    assert _extract_product_code(raw) == "0.5 PN"
+
+
+def test_extract_product_code_with_plus_sign():
+    raw = {"text": "Produktcode: AH-SEM-PAU+<br />"}
+    assert _extract_product_code(raw) == "AH-SEM-PAU+"
+
+
 def test_pax_is_derived_from_base_night_quantity_when_no_pax_field(db_session):
     # Echter Beleg: LH-UEB wird "pro Person und Nacht" verrechnet, hier 16.00 fuer
     # einen Aufenthalt von 4 Naechten -> 4 Personen.

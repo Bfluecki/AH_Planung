@@ -5,7 +5,6 @@ def test_known_codes_map_to_expected_ertragsart():
     assert ertragsart_fuer("LH-UEB") == ErtragsArt.UEBERNACHTUNG
     assert ertragsart_fuer("AH-VLP") == ErtragsArt.VERPFLEGUNG
     assert ertragsart_fuer("KU-TXT") == ErtragsArt.KURTAXE
-    assert ertragsart_fuer("LH-KZA") == ErtragsArt.RAUM
     assert ertragsart_fuer("AH-LH-REI") == ErtragsArt.REINIGUNG
     assert ertragsart_fuer("PZ") == ErtragsArt.PARKPLATZ
 
@@ -39,3 +38,21 @@ def test_night_surcharges_excluded_from_night_count():
     # doppelt zaehlen (Basis-Uebernachtung + Zuschlag fuer dieselbe Nacht).
     assert ist_uebernachtung("LH-UEB-EZU") is False
     assert ist_uebernachtung("LH-UEB-DZ") is False
+
+
+def test_codes_corrected_against_full_product_catalog():
+    # Laut vollstaendigem Bexio-Produktkatalog-Export: LH-KZA ("Kurzaufenthalt")
+    # ist eine Uebernachtung (pro Person und Nacht, Bexio-Gruppe "Uebernachtungen"),
+    # AH-UEB-ANT ("Anteil Raumnutzung") trotz Namen KEINE Uebernachtung, sondern
+    # eine tagesbasierte Raumnutzungsgebuehr (Bexio-Gruppe "Raummieten").
+    assert ertragsart_fuer("LH-KZA") == ErtragsArt.UEBERNACHTUNG
+    assert ist_uebernachtung("LH-KZA") is True
+    assert ertragsart_fuer("AH-UEB-ANT") == ErtragsArt.RAUM
+    assert ist_uebernachtung("AH-UEB-ANT") is False
+
+
+def test_beverage_and_room_codes_from_catalog():
+    assert ertragsart_fuer("AH-HLP") == ErtragsArt.VERPFLEGUNG  # Halbpension
+    assert ertragsart_fuer("0.5 PN") == ErtragsArt.VERPFLEGUNG  # Pinot Noir 5dl
+    assert ertragsart_fuer("AH-RAU-GT") == ErtragsArt.RAUM
+    assert ertragsart_fuer("LH-REI") == ErtragsArt.REINIGUNG
