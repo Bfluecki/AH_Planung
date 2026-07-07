@@ -1,3 +1,4 @@
+import datetime as dt
 import os
 from decimal import Decimal
 
@@ -8,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
 from app.db import Base, get_db
-from app.models import LineItem
+from app.models import Booking, Invoice, LineItem, MonthlyAllocation
 
 
 @pytest.fixture
@@ -90,4 +91,45 @@ def test_product_summary_filters_by_document_type(client):
 def test_product_summary_requires_auth(client):
     test_client, _ = client
     response = test_client.get("/admin/debug/product-summary")
+    assert response.status_code == 401
+
+
+def test_revenue_reconciliation_groups_by_invoice_and_service_year(client):
+    test_client, TestSession = client
+    db = TestSession()
+    db.add(Invoice(id=1, document_nr="RE-001", invoice_date=dt.date(2025, 3, 10),
+                    total=Decimal("1000.00"),
+                    raw={"total_net": "1000.00", "total_gross": "1081.00", "kb_item_status_id": 9}))
+    db.add(Invoice(id=2, document_nr="RE-002", invoice_date=dt.date(2025, 11, 2),
+                    total=Decimal("500.00"),
+                    raw={"total_net": "500.00", "total_gross": "540.50", "kb_item_status_id": 7}))
+    db.add(Invoice(id=3, document_nr="RE-003", invoice_date=dt.date(2026, 1, 15),
+                    total=Decimal("200.00"),
+                    raw={"total_net": "200.00", "total_gross": "216.20", "kb_item_status_id": 9}))
+    booking = Booking(booking_key="AU-001", status="verrechnet")
+    db.add(booking)
+    db.flush()
+    # Leistung Dez 2025, Rechnung Jan 2026 - genau der Abgrenzungsfall aus dem Konzept.
+    db.add(MonthlyAllocation(booking_id=booking.id, year=2025, month=12,
+                              umsatz_soll=Decimal("200.00"), umsatz_ist=Decimal("200.00")))
+    db.commit()
+    db.close()
+
+    response = test_client.get("/admin/debug/revenue-reconciliation", auth=("admin", "testpass123"))
+    assert response.status_code == 200
+    body = response.json()
+
+    invoices_2025 = body["invoices_by_invoice_year"]["2025"]
+    assert invoices_2025["invoice_count"] == 2
+    assert invoices_2025["total_net"] == "1500.00"
+    assert invoices_2025["total_gross"] == "1621.50"
+    assert invoices_2025["status_ids"] == {"9": 1, "7": 1}
+
+    assert body["invoices_by_invoice_year"]["2026"]["invoice_count"] == 1
+    assert body["allocations_by_service_year"]["2025"]["umsatz_ist"] == "200.00"
+
+
+def test_revenue_reconciliation_requires_auth(client):
+    test_client, _ = client
+    response = test_client.get("/admin/debug/revenue-reconciliation")
     assert response.status_code == 401

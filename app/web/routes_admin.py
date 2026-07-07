@@ -19,7 +19,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
 from app.domain.product_mapping import ErtragsArt, ertragsart_fuer
-from app.models import CreditNote, Invoice, LineItem, OAuthToken, Order, Quote
+from app.models import CreditNote, Invoice, LineItem, MonthlyAllocation, OAuthToken, Order, Quote
 from app.web.auth import require_admin_auth
 
 _DOCUMENT_MODELS = {
@@ -170,4 +170,72 @@ def admin_debug_product_summary(document_type: str = "invoice", db: Session = De
         "unmapped_revenue": str(unmapped_revenue),
         "unmapped_share_pct": unmapped_share_pct,
         "groups": [{**g, "total": str(g["total"])} for g in sorted_groups],
+    }
+
+
+def _raw_decimal(value, fallback: Decimal) -> Decimal:
+    if value in (None, ""):
+        return fallback
+    try:
+        return Decimal(str(value))
+    except InvalidOperation:
+        return fallback
+
+
+@router.get("/debug/revenue-reconciliation")
+def admin_debug_revenue_reconciliation(db: Session = Depends(get_db)) -> dict:
+    """Abstimmung gegen Bexio: Anzahl und Brutto-/Netto-Summe aller synchronisierten
+    Rechnungen je Rechnungsjahr (nach Rechnungsdatum), plus Umsatz Soll/Ist je
+    Leistungsjahr aus den Monats-Allokationen (ungefiltert, alle Status).
+
+    Zum Vergleich die Rechnungsliste in Bexio heranziehen (Summe der Rechnungen des
+    Jahres) - NICHT das Dashboard "Fluessige Mittel": das zeigt Zahlungseingaenge
+    (Cash, brutto, nach Zahlungsdatum, inkl. Einnahmen ohne Rechnung) und kann daher
+    nie mit dem Rechnungsumsatz uebereinstimmen (drei Zeitachsen, Konzept Abschnitt 3).
+
+    status_ids zeigt die Bexio-Statusverteilung (kb_item_status_id) je Jahr - damit
+    laesst sich erkennen, ob z.B. Entwuerfe oder stornierte Rechnungen mitgezaehlt
+    werden, die in Bexio-Auswertungen fehlen."""
+    invoices = db.query(Invoice).all()
+    by_invoice_year: dict[int, dict] = {}
+    for inv in invoices:
+        year = inv.invoice_date.year if inv.invoice_date else 0
+        group = by_invoice_year.setdefault(
+            year,
+            {"invoice_count": 0, "total_net": Decimal("0"), "total_gross": Decimal("0"), "status_ids": {}},
+        )
+        raw = inv.raw or {}
+        group["invoice_count"] += 1
+        group["total_net"] += _raw_decimal(raw.get("total_net"), inv.total or Decimal("0"))
+        group["total_gross"] += _raw_decimal(raw.get("total_gross"), inv.total or Decimal("0"))
+        status_id = str(raw.get("kb_item_status_id"))
+        group["status_ids"][status_id] = group["status_ids"].get(status_id, 0) + 1
+
+    allocations = db.query(MonthlyAllocation).all()
+    by_service_year: dict[int, dict] = {}
+    for alloc in allocations:
+        group = by_service_year.setdefault(
+            alloc.year, {"umsatz_soll": Decimal("0"), "umsatz_ist": Decimal("0")}
+        )
+        group["umsatz_soll"] += alloc.umsatz_soll
+        group["umsatz_ist"] += alloc.umsatz_ist
+
+    return {
+        "hinweis": (
+            "Vergleichsbasis in Bexio: Rechnungsliste des Jahres (Summe brutto/netto). "
+            "Das Dashboard 'Fluessige Mittel' zeigt Zahlungseingaenge und ist nicht vergleichbar."
+        ),
+        "invoices_by_invoice_year": {
+            str(year): {
+                "invoice_count": g["invoice_count"],
+                "total_net": str(g["total_net"]),
+                "total_gross": str(g["total_gross"]),
+                "status_ids": g["status_ids"],
+            }
+            for year, g in sorted(by_invoice_year.items())
+        },
+        "allocations_by_service_year": {
+            str(year): {"umsatz_soll": str(g["umsatz_soll"]), "umsatz_ist": str(g["umsatz_ist"])}
+            for year, g in sorted(by_service_year.items())
+        },
     }
