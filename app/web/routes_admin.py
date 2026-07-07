@@ -18,6 +18,7 @@ from app.admin_config import get_effective_config, save_admin_config
 from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
+from app.domain.product_mapping import ErtragsArt, ertragsart_fuer
 from app.models import CreditNote, Invoice, LineItem, OAuthToken, Order, Quote
 from app.web.auth import require_admin_auth
 
@@ -129,3 +130,44 @@ def admin_debug_documents(kind: str = "invoice", limit: int = 2, db: Session = D
         return {"error": f"Unbekannte kind={kind!r}, erlaubt: {list(_DOCUMENT_MODELS)}"}
     rows = db.query(model).order_by(model.id.desc()).limit(limit).all()
     return {"kind": kind, "count": len(rows), "samples": [row.raw for row in rows]}
+
+
+@router.get("/debug/product-summary")
+def admin_debug_product_summary(document_type: str = "invoice", db: Session = Depends(get_db)) -> dict:
+    """Gruppiert alle synchronisierten Positionen nach Produktcode und zeigt, wie viel
+    Umsatz auf nicht zugeordnete Codes (Ertragsart 'sonstiges') entfaellt - beantwortet
+    "gibt es Umsaetze ohne Produktzuordnung?" anhand der echten synchronisierten
+    Positionen statt nur des Produktkatalogs. document_type="all" fuer alle Dokument-
+    typen zusammen (Standard: nur Rechnungen, also effektiv verrechneter Umsatz)."""
+    query = db.query(LineItem)
+    if document_type != "all":
+        query = query.filter_by(document_type=document_type)
+    items = query.all()
+
+    groups: dict[str, dict] = {}
+    for item in items:
+        code = item.product_code or "(kein Produktcode erkannt)"
+        ertragsart = ertragsart_fuer(item.product_code)
+        group = groups.setdefault(
+            code, {"product_code": code, "ertragsart": ertragsart.value, "count": 0, "total": Decimal("0")}
+        )
+        group["count"] += 1
+        group["total"] += item.total or Decimal("0")
+
+    total_revenue = sum((g["total"] for g in groups.values()), Decimal("0"))
+    unmapped_revenue = sum(
+        (g["total"] for g in groups.values() if g["ertragsart"] == ErtragsArt.SONSTIGES.value), Decimal("0")
+    )
+    unmapped_share_pct = (
+        float((unmapped_revenue / total_revenue * 100).quantize(Decimal("0.1"))) if total_revenue else 0.0
+    )
+
+    sorted_groups = sorted(groups.values(), key=lambda g: g["total"], reverse=True)
+    return {
+        "document_type": document_type,
+        "total_positions": len(items),
+        "total_revenue": str(total_revenue),
+        "unmapped_revenue": str(unmapped_revenue),
+        "unmapped_share_pct": unmapped_share_pct,
+        "groups": [{**g, "total": str(g["total"])} for g in sorted_groups],
+    }
