@@ -51,13 +51,23 @@
                 {% for m in year_summary.months %}
                 <tr>
                     <td><a href="#monat-{{ m.month }}">{{ month_names[m.month - 1] }}</a></td>
-                    <td>{{ "%.1f"|format(m.days) }}</td>
-                    <td>{{ "%.1f"|format(m.nights_ist) }}</td>
-                    <td>{{ "%.2f"|format(m.umsatz_soll) }}</td>
-                    <td>{{ "%.2f"|format(m.umsatz_ist) }}</td>
-                    <td>{{ "%.2f"|format(m.budget) }}</td>
-                    <td class="{{ 'negative' if m.abweichung < 0 else 'positive' }}">{{ "%.2f"|format(m.abweichung) }}</td>
-                    <td>{{ m.zielerreichung_pct }}%</td>
+                    <td>{{ m.days|swissnum(1) }}</td>
+                    <td>{{ m.nights_ist|swissnum(1) }}</td>
+                    <td>{{ m.umsatz_soll|swissnum }}</td>
+                    <td>{{ m.umsatz_ist|swissnum }}</td>
+                    <td>
+                        <form action="/budget/save" method="post" class="inline-form budget-form">
+                            <input type="hidden" name="year" value="{{ year }}">
+                            <input type="hidden" name="month" value="{{ m.month }}">
+                            {% for s in selected_statuses %}
+                            <input type="hidden" name="status" value="{{ s }}">
+                            {% endfor %}
+                            <input type="text" name="budget_chf" value="{{ m.budget|swissnum }}" size="10">
+                            <button type="submit" title="Budget speichern">✓</button>
+                        </form>
+                    </td>
+                    <td class="{{ 'negative' if m.abweichung < 0 else 'positive' }}">{{ m.abweichung|swissnum }}</td>
+                    <td>{{ m.zielerreichung_pct|swissnum(1) }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -66,11 +76,11 @@
                     <td>Jahr total</td>
                     <td></td>
                     <td></td>
-                    <td>{{ "%.2f"|format(year_summary.umsatz_soll) }}</td>
-                    <td>{{ "%.2f"|format(year_summary.umsatz_ist) }}</td>
-                    <td>{{ "%.2f"|format(year_summary.budget) }}</td>
-                    <td class="{{ 'negative' if year_summary.abweichung < 0 else 'positive' }}">{{ "%.2f"|format(year_summary.abweichung) }}</td>
-                    <td>{{ year_summary.zielerreichung_pct }}%</td>
+                    <td>{{ year_summary.umsatz_soll|swissnum }}</td>
+                    <td>{{ year_summary.umsatz_ist|swissnum }}</td>
+                    <td>{{ year_summary.budget|swissnum }}</td>
+                    <td class="{{ 'negative' if year_summary.abweichung < 0 else 'positive' }}">{{ year_summary.abweichung|swissnum }}</td>
+                    <td>{{ year_summary.zielerreichung_pct|swissnum(1) }}%</td>
                 </tr>
             </tfoot>
         </table>
@@ -110,12 +120,12 @@
                     <td>{{ row.pax_soll if row.pax_soll is not none else "" }}</td>
                     <td>{{ row.pax_ist if row.pax_ist is not none else "" }}</td>
                     <td>{{ row.pax_diff if row.pax_diff is not none else "" }}</td>
-                    <td>{{ "%.1f"|format(row.tage) }}</td>
-                    <td>{{ "%.1f"|format(row.naechte) }}</td>
-                    <td>{{ "%.1f"|format(row.pax_naechte) }}</td>
-                    <td>{{ "%.2f"|format(row.umsatz_soll) }}</td>
-                    <td>{{ "%.2f"|format(row.umsatz_ist) }}</td>
-                    <td class="{{ 'negative' if row.umsatz_diff < 0 else 'positive' }}">{{ "%.2f"|format(row.umsatz_diff) }}</td>
+                    <td>{{ row.tage|swissnum(1) }}</td>
+                    <td>{{ row.naechte|swissnum(1) }}</td>
+                    <td>{{ row.pax_naechte|swissnum(1) }}</td>
+                    <td>{{ row.umsatz_soll|swissnum }}</td>
+                    <td>{{ row.umsatz_ist|swissnum }}</td>
+                    <td class="{{ 'negative' if row.umsatz_diff < 0 else 'positive' }}">{{ row.umsatz_diff|swissnum }}</td>
                     <td><span class="linked-{{ row.linked_by }}">{{ row.linked_by }}</span></td>
                 </tr>
                 {% endfor %}

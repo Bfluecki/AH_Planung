@@ -286,3 +286,21 @@ class MonthlyAllocation(Base):
     umsatz_ist: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
 
     booking: Mapped[Booking] = relationship(back_populates="monthly_allocations")
+
+
+class MonthlyBudget(Base):
+    """Budget-Override pro Jahr+Monat (Konzept Abschnitt 9.4: Budget "fix oder
+    konfigurierbar"). Ohne Eintrag hier gilt der Default aus Settings/AdminConfig
+    (app/admin_config.py) einheitlich fuer alle Monate - direkt in der
+    Jahresuebersicht editierbar (app/web/routes_dashboard.py)."""
+
+    __tablename__ = "monthly_budgets"
+    __table_args__ = (UniqueConstraint("year", "month", name="uq_monthly_budget"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column()
+    month: Mapped[int] = mapped_column()  # 1-12
+    budget_chf: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
+    )

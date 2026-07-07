@@ -62,3 +62,14 @@ def test_vorjahresvergleich_pct():
     )
     june = next(m for m in year_summary.months if m.month == 6)
     assert june.vorjahresvergleich_pct == Decimal("125.0")
+
+
+def test_budget_override_applies_only_to_that_month():
+    figures = [MonthlyFigure(year=2026, month=6, umsatz_ist=Decimal("500"))]
+    year_summary = aggregate_year(
+        figures, 2026, monthly_budget=Decimal("1000"), budget_overrides={6: Decimal("2000")}
+    )
+    june = next(m for m in year_summary.months if m.month == 6)
+    july = next(m for m in year_summary.months if m.month == 7)
+    assert june.budget == Decimal("2000")
+    assert july.budget == Decimal("1000")  # unveraendert, kein Override fuer Juli

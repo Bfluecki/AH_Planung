@@ -12,6 +12,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
+from app.budget import get_budget_overrides
 from app.config import Settings, get_settings
 from app.domain.aggregation import MonthlyFigure, YearSummary, aggregate_year
 from app.models import Booking, MonthlyAllocation
@@ -101,7 +102,8 @@ def build_report(
         )
         for a in allocations
     ]
-    year_summary = aggregate_year(figures, year, effective.monthly_budget_chf)
+    budget_overrides = get_budget_overrides(db, year)
+    year_summary = aggregate_year(figures, year, effective.monthly_budget_chf, budget_overrides=budget_overrides)
 
     rows_by_month: dict[int, list[ReportRow]] = {m: [] for m in range(1, 13)}
     for a in allocations:
