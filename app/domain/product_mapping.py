@@ -30,13 +30,10 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "LH-UEB-EZU": ErtragsArt.UEBERNACHTUNG,  # Einzelzimmerzuschlag (Zusatzkosten pro Nacht)
     "LH-UEB-DZ": ErtragsArt.UEBERNACHTUNG,  # Doppelzimmerzuschlag (Zusatzkosten pro Nacht)
     "LH-KZA": ErtragsArt.UEBERNACHTUNG,  # Kurzaufenthalt, pro Person und Nacht
-    # BB-UEB taucht in echten Rechnungen auf, ist aber NICHT im Produktkatalog-Export
-    # gelistet (evtl. ein drittes Gebaeude/Standort neben Aarbergerhus/Louishaus).
-    # Ertragsart nach Namenskonvention (Analogie zu LH-UEB) eingestuft - wirkt sich
-    # nicht auf den Umsatz aus. Bewusst NICHT in NIGHT_RELEVANT_CODES unten
-    # aufgenommen, bis verifiziert ist, dass "pro Person und Nacht" abgerechnet wird
-    # wie bei LH-UEB - sonst wuerde eine falsche Annahme die Naechte-/PAX-Zahlen
-    # verfaelschen.
+    # BB-UEB = "Bed & Breakfast" bei einem externen Anbieter (nicht Aarbergerhus/
+    # Louishaus selbst) - bestaetigt vom Auftraggeber. Nicht im Produktkatalog-Export
+    # gelistet, da externe Unterkunft. Zaehlt zu den Uebernachtungen, siehe
+    # NIGHT_RELEVANT_CODES unten.
     "BB-UEB": ErtragsArt.UEBERNACHTUNG,
     "KU-TXT": ErtragsArt.KURTAXE,
 
@@ -101,6 +98,7 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
 NIGHT_RELEVANT_CODES = {
     "LH-UEB",
     "LH-KZA",
+    "BB-UEB",
 }
 
 

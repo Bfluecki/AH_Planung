@@ -72,12 +72,8 @@ def test_codes_found_via_product_summary_debug_endpoint():
     assert ertragsart_fuer("RW") == ErtragsArt.VERPFLEGUNG
 
 
-def test_bb_ueb_categorized_but_not_counted_as_night_pending_confirmation():
-    # BB-UEB ist NICHT im Produktkatalog gelistet, taucht aber in echten Rechnungen
-    # auf - per Namenskonvention (Analogie zu LH-UEB) als Ertragsart Uebernachtung
-    # eingestuft (wirkt sich nicht auf den Umsatz aus). Bewusst NICHT in
-    # NIGHT_RELEVANT_CODES aufgenommen, bis verifiziert ist, dass die Abrechnung
-    # tatsaechlich "pro Person und Nacht" erfolgt wie bei LH-UEB - sonst wuerde eine
-    # falsche Annahme die Naechte-/PAX-Zahlen verfaelschen.
+def test_bb_ueb_confirmed_as_external_overnight_stay():
+    # BB-UEB = "Bed & Breakfast" bei einem externen Anbieter, vom Auftraggeber
+    # bestaetigt - zaehlt zu den Uebernachtungen wie LH-UEB.
     assert ertragsart_fuer("BB-UEB") == ErtragsArt.UEBERNACHTUNG
-    assert ist_uebernachtung("BB-UEB") is False
+    assert ist_uebernachtung("BB-UEB") is True
