@@ -44,14 +44,8 @@ def dashboard(
     year = year or effective.current_planning_year
     selected_statuses = set(status) or set(DEFAULT_STATUSES)
 
-    # Jahresuebersicht (Summen/Budget) bleibt bewusst ungefiltert - sie soll immer das
-    # Gesamtbild (Pipeline+Auftrag+Rechnung) zeigen. Der Status-Filter blendet nur
-    # einzelne Buchungszeilen in den Monatstabellen aus/ein.
-    year_summary, rows_by_month = build_report(db, year, settings)
-    filtered_rows_by_month = {
-        month: [row for row in rows if row.status in selected_statuses]
-        for month, rows in rows_by_month.items()
-    }
+    # Status-Filter wirkt auf Jahresuebersicht UND Detailzeilen gleichermassen.
+    year_summary, rows_by_month = build_report(db, year, settings, statuses=selected_statuses)
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -59,7 +53,7 @@ def dashboard(
             "request": request,
             "year": year,
             "year_summary": year_summary,
-            "rows_by_month": filtered_rows_by_month,
+            "rows_by_month": rows_by_month,
             "month_names": MONTH_NAMES_DE,
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,

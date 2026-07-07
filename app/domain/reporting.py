@@ -69,17 +69,25 @@ def format_month(d: dt.date | None) -> str:
 
 
 def build_report(
-    db: Session, year: int, settings: Settings | None = None
+    db: Session,
+    year: int,
+    settings: Settings | None = None,
+    statuses: set[str] | None = None,
 ) -> tuple[YearSummary, dict[int, list[ReportRow]]]:
+    """statuses filtert nach Booking.status (z.B. nur "verrechnet"); None/leer = alle.
+    Wirkt auf Jahresuebersicht UND Detailzeilen gleichermassen - beide werden aus
+    derselben gefilterten Abfrage gebaut, es gibt keine separate "Gesamtbild"-Sicht."""
     settings = settings or get_settings()
     effective = get_effective_config(db, settings)
 
-    allocations = (
+    query = (
         db.query(MonthlyAllocation)
         .join(Booking, Booking.id == MonthlyAllocation.booking_id)
         .filter(MonthlyAllocation.year == year)
-        .all()
     )
+    if statuses:
+        query = query.filter(Booking.status.in_(statuses))
+    allocations = query.all()
 
     figures = [
         MonthlyFigure(
