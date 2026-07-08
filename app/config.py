@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     allocation_mode: str = "prorata"
     monthly_budget_chf: Decimal = Decimal("28333.30")
     current_planning_year: int = 2026
+    # Bettenkapazitaet gesamt (Auslastungsberechnung). 0 = unbekannt -> keine Auslastung.
+    bed_capacity: int = 0
 
     secret_key: str = "change-me-in-railway"
     log_level: str = "INFO"

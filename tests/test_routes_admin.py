@@ -146,18 +146,27 @@ def test_revenue_reconciliation_requires_auth(client):
     assert response.headers["location"] == "/login"
 
 
-def test_admin_can_create_user_and_it_appears(client):
+def test_admin_can_create_user_with_full_profile(client):
     test_client, TestSession = client
     resp = test_client.post(
         "/admin/users/create",
-        data={"new_username": "hans", "new_password": "pw12345", "new_role": "user"},
+        data={
+            "new_username": "hans",
+            "new_password": "pw12345",
+            "new_first_name": "Hans",
+            "new_last_name": "Muster",
+            "new_email": "hans@example.ch",
+            "new_role": "betriebsleitung",
+        },
         follow_redirects=False,
     )
     assert resp.status_code == 303
     from app.auth import get_user_by_username
     db = TestSession()
     u = get_user_by_username(db, "hans")
-    assert u is not None and u.role == "user" and u.is_active
+    assert u is not None and u.role == "betriebsleitung" and u.is_active
+    assert u.first_name == "Hans" and u.last_name == "Muster" and u.email == "hans@example.ch"
+    assert u.display_name == "Hans Muster"
     db.close()
 
 

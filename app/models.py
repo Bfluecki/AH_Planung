@@ -29,20 +29,30 @@ from app.db import Base
 
 
 class User(Base):
-    """Anwender-Konto mit Rolle. role="admin" hat Vollzugriff (inkl. Benutzer-
-    verwaltung, Bexio-Config, Log); role="user" sieht nur Dashboard/Auswertung.
+    """Anwender-Konto mit Rolle. Nur role="admin" hat Vollzugriff (Benutzerverwaltung,
+    Bexio-Config, Log); die uebrigen Rollen (stiftungsrat, betriebsleitung,
+    mitarbeiter_betrieb) sehen Dashboard/Auswertung. Die Rollen dienen zugleich als
+    organisatorische Einordnung fuer spaeter feiner abgestufte Rechte.
     Passwoerter werden nur als Hash gespeichert (siehe app/auth.py)."""
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
+    first_name: Mapped[str] = mapped_column(String, default="")
+    last_name: Mapped[str] = mapped_column(String, default="")
+    email: Mapped[str] = mapped_column(String, default="")
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
-    role: Mapped[str] = mapped_column(String, default="user")  # "admin" | "user"
+    role: Mapped[str] = mapped_column(String, default="mitarbeiter_betrieb")
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
     )
+
+    @property
+    def display_name(self) -> str:
+        full = f"{self.first_name} {self.last_name}".strip()
+        return full or self.username
 
 
 class AuditLog(Base):
@@ -93,6 +103,8 @@ class AdminConfig(Base):
     allocation_mode: Mapped[str | None] = mapped_column(String, nullable=True)
     monthly_budget_chf: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     current_planning_year: Mapped[int | None] = mapped_column(nullable=True)
+    # Bettenkapazitaet gesamt (fuer Auslastungsberechnung: Betten x Naechte je Monat).
+    bed_capacity: Mapped[int | None] = mapped_column(nullable=True)
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
     )

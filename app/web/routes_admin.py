@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app import auth
 from app.admin_config import get_effective_config, save_admin_config
 from app.audit import log_action, recent_entries
-from app.auth import ROLE_ADMIN, ROLE_USER, User, require_admin
+from app.auth import ALL_ROLES, ROLE_ADMIN, ROLE_LABELS, ROLE_MITARBEITER, User, require_admin
 from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
@@ -57,7 +57,8 @@ def _context(request: Request, db: Session, user: User, message: str | None = No
         "current_user": user.username,
         "users": db.query(User).order_by(User.username).all(),
         "audit_entries": recent_entries(db, limit=80),
-        "roles": [ROLE_ADMIN, ROLE_USER],
+        "roles": ALL_ROLES,
+        "role_labels": ROLE_LABELS,
     }
 
 
@@ -84,6 +85,7 @@ def admin_save(
     allocation_mode: str = Form(ALLOCATION_MODE_PRORATA),
     monthly_budget_chf: str = Form(""),
     current_planning_year: str = Form(""),
+    bed_capacity: str = Form(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
@@ -105,6 +107,15 @@ def admin_save(
                 "admin.html", _context(request, db, user, "Ungueltiges Jahr-Format.")
             )
 
+    beds = None
+    if bed_capacity.strip():
+        try:
+            beds = int(bed_capacity.strip())
+        except ValueError:
+            return templates.TemplateResponse(
+                "admin.html", _context(request, db, user, "Ungueltige Bettenzahl.")
+            )
+
     save_admin_config(
         db,
         bexio_client_id=bexio_client_id.strip() or None,
@@ -113,8 +124,9 @@ def admin_save(
         allocation_mode=allocation_mode,
         monthly_budget_chf=budget,
         current_planning_year=year,
+        bed_capacity=beds,
     )
-    log_action(db, user.username, "config_save", f"mode={allocation_mode} year={year}")
+    log_action(db, user.username, "config_save", f"mode={allocation_mode} year={year} beds={beds}")
     return RedirectResponse(url="/admin?saved=1", status_code=303)
 
 
@@ -131,12 +143,15 @@ def admin_create_user(
     request: Request,
     new_username: str = Form(...),
     new_password: str = Form(...),
-    new_role: str = Form(ROLE_USER),
+    new_first_name: str = Form(""),
+    new_last_name: str = Form(""),
+    new_email: str = Form(""),
+    new_role: str = Form(ROLE_MITARBEITER),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
     uname = new_username.strip()
-    role = new_role if new_role in (ROLE_ADMIN, ROLE_USER) else ROLE_USER
+    role = new_role if new_role in ALL_ROLES else ROLE_MITARBEITER
     if not uname or not new_password:
         return templates.TemplateResponse(
             "admin.html", _context(request, db, user, "Benutzername und Passwort sind erforderlich.")
@@ -145,7 +160,10 @@ def admin_create_user(
         return templates.TemplateResponse(
             "admin.html", _context(request, db, user, f"Benutzer «{uname}» existiert bereits.")
         )
-    auth.create_user(db, uname, new_password, role=role)
+    auth.create_user(
+        db, uname, new_password, role=role,
+        first_name=new_first_name, last_name=new_last_name, email=new_email,
+    )
     log_action(db, user.username, "user_create", f"{uname} ({role})")
     return RedirectResponse(url="/admin?user_created=1#benutzer", status_code=303)
 
@@ -176,7 +194,14 @@ def admin_update_user(
         target.is_active = True
     elif action == "password" and value.strip():
         target.password_hash = auth.hash_password(value.strip())
-    elif action == "role" and value in (ROLE_ADMIN, ROLE_USER):
+    elif action == "role" and value in ALL_ROLES:
+        # Letzten aktiven Admin nicht "wegdegradieren".
+        active_admins = db.query(User).filter(User.role == ROLE_ADMIN, User.is_active).count()
+        if target.role == ROLE_ADMIN and value != ROLE_ADMIN and active_admins <= 1:
+            return templates.TemplateResponse(
+                "admin.html",
+                _context(request, db, user, "Der letzte aktive Administrator kann die Rolle nicht abgeben."),
+            )
         target.role = value
     db.commit()
     log_action(db, user.username, "user_update", f"{target.username}: {action} {value if action=='role' else ''}".strip())

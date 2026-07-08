@@ -8,10 +8,18 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from app.admin_config import get_effective_config
 from app.auth import User, require_login
 from app.config import get_settings
 from app.db import get_db
-from app.domain.analytics import available_years, soll_ist_accuracy, year_figures
+from app.domain.analytics import (
+    average_stats,
+    available_years,
+    monthly_occupancy,
+    soll_ist_accuracy,
+    top_customers,
+    year_figures,
+)
 from app.web.formatting import swissnum
 
 router = APIRouter(tags=["analytics"])
@@ -73,6 +81,46 @@ def _build_line_chart(years_data: list[tuple[int, list[Decimal]]]) -> dict:
     }
 
 
+def _build_bar_chart(monthly: list[tuple[int, Decimal]], max_val: float = 100.0) -> dict:
+    """Balkendiagramm fuer 12 Monatswerte (z.B. Belegungsgrad in %)."""
+    plot_w = _CHART_W - _PAD_L - _PAD_R
+    plot_h = _CHART_H - _PAD_T - _PAD_B
+    baseline_y = _PAD_T + plot_h
+    max_val = max(max_val, max((float(v) for _, v in monthly), default=0.0)) or 1.0
+    slot = plot_w / 12
+    bar_w = slot * 0.62
+
+    bars = []
+    for i, (month, value) in enumerate(monthly):
+        v = float(value)
+        h = plot_h * (v / max_val)
+        cx = _PAD_L + slot * i + slot / 2
+        bars.append({
+            "x": round(cx - bar_w / 2, 1),
+            "y": round(baseline_y - h, 1),
+            "w": round(bar_w, 1),
+            "h": round(h, 1),
+            "label": MONTH_ABBR[month - 1],
+            "label_x": round(cx, 1),
+            "value": value,
+        })
+
+    gridlines = []
+    for frac in (0, 0.25, 0.5, 0.75, 1.0):
+        gy = _PAD_T + plot_h * (1 - frac)
+        gridlines.append({"y": round(gy, 1), "label": swissnum(Decimal(str(max_val * frac)), 0)})
+
+    return {
+        "width": _CHART_W,
+        "height": _CHART_H,
+        "bars": bars,
+        "gridlines": gridlines,
+        "baseline_y": round(baseline_y, 1),
+        "left_pad": _PAD_L,
+        "right_x": _CHART_W - _PAD_R,
+    }
+
+
 @router.get("/auswertung")
 def auswertung(
     request: Request,
@@ -103,6 +151,12 @@ def auswertung(
         yoy_pct = ((current_fig.umsatz_ist - prev_ist) / prev_ist * 100).quantize(Decimal("0.1"))
     accuracy = soll_ist_accuracy(db, current)
 
+    effective = get_effective_config(db, settings)
+    occupancy = monthly_occupancy(db, current, effective.bed_capacity)
+    occ_chart = _build_bar_chart([(o.month, o.occupancy_pct or Decimal("0")) for o in occupancy], max_val=100.0)
+    customers = top_customers(db, current, limit=15)
+    averages = average_stats(db, current)
+
     return templates.TemplateResponse(
         "auswertung.html",
         {
@@ -115,5 +169,11 @@ def auswertung(
             "yoy_pct": yoy_pct,
             "prev_year": prev_year,
             "accuracy": accuracy,
+            "bed_capacity": effective.bed_capacity,
+            "occupancy": occupancy,
+            "occ_chart": occ_chart,
+            "customers": customers,
+            "averages": averages,
+            "month_abbr": MONTH_ABBR,
         },
     )

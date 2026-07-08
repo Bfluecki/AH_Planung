@@ -113,6 +113,13 @@
                     <td><label for="current_planning_year">Planungsjahr</label></td>
                     <td><input type="text" id="current_planning_year" name="current_planning_year" value="{{ effective.current_planning_year }}"></td>
                 </tr>
+                <tr>
+                    <td><label for="bed_capacity">Bettenkapazität</label></td>
+                    <td>
+                        <input type="text" id="bed_capacity" name="bed_capacity" value="{{ effective.bed_capacity or '' }}">
+                        <span class="source-tag">Anzahl Betten gesamt – Basis für die Auslastungsberechnung (Betten × Nächte). Leer/0 = keine Auslastungsanzeige.</span>
+                    </td>
+                </tr>
             </table>
 
             <button type="submit">Speichern</button>
@@ -131,6 +138,8 @@
             <thead>
                 <tr>
                     <th class="text-col">Benutzer</th>
+                    <th class="text-col">Name</th>
+                    <th class="text-col">E-Mail</th>
                     <th class="text-col">Rolle</th>
                     <th class="text-col">Status</th>
                     <th class="text-col">Aktionen</th>
@@ -140,12 +149,14 @@
                 {% for u in users %}
                 <tr>
                     <td class="text-col">{{ u.username }}</td>
+                    <td class="text-col">{{ u.display_name if u.display_name != u.username else "–" }}</td>
+                    <td class="text-col">{{ u.email or "–" }}</td>
                     <td class="text-col">
                         <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
                             <input type="hidden" name="action" value="role">
                             <select name="value" onchange="this.form.submit()">
                                 {% for r in roles %}
-                                <option value="{{ r }}" {{ "selected" if r == u.role else "" }}>{{ r }}</option>
+                                <option value="{{ r }}" {{ "selected" if r == u.role else "" }}>{{ role_labels[r] }}</option>
                                 {% endfor %}
                             </select>
                         </form>
@@ -178,22 +189,34 @@
         <form action="/admin/users/create" method="post">
             <table class="admin-form">
                 <tr>
+                    <td><label for="new_first_name">Vorname</label></td>
+                    <td><input type="text" id="new_first_name" name="new_first_name" autocomplete="off"></td>
+                </tr>
+                <tr>
+                    <td><label for="new_last_name">Name</label></td>
+                    <td><input type="text" id="new_last_name" name="new_last_name" autocomplete="off"></td>
+                </tr>
+                <tr>
+                    <td><label for="new_email">E-Mail</label></td>
+                    <td><input type="email" id="new_email" name="new_email" autocomplete="off"></td>
+                </tr>
+                <tr>
                     <td><label for="new_username">Benutzername</label></td>
-                    <td><input type="text" id="new_username" name="new_username" autocomplete="off"></td>
+                    <td><input type="text" id="new_username" name="new_username" autocomplete="off" required></td>
                 </tr>
                 <tr>
                     <td><label for="new_password">Passwort</label></td>
-                    <td><input type="password" id="new_password" name="new_password" autocomplete="new-password"></td>
+                    <td><input type="password" id="new_password" name="new_password" autocomplete="new-password" required></td>
                 </tr>
                 <tr>
                     <td><label for="new_role">Rolle</label></td>
                     <td>
                         <select id="new_role" name="new_role">
                             {% for r in roles %}
-                            <option value="{{ r }}">{{ r }}</option>
+                            <option value="{{ r }}">{{ role_labels[r] }}</option>
                             {% endfor %}
                         </select>
-                        <span class="source-tag">admin = Vollzugriff · user = nur Dashboard/Auswertung</span>
+                        <span class="source-tag">Nur «Admin» hat Vollzugriff (Konfiguration, Benutzer, Log); die übrigen Rollen sehen Dashboard und Auswertung.</span>
                     </td>
                 </tr>
             </table>

@@ -26,6 +26,7 @@ class EffectiveConfig:
     allocation_mode: str
     monthly_budget_chf: Decimal
     current_planning_year: int
+    bed_capacity: int
     bexio_client_id_is_override: bool
     bexio_client_secret_is_override: bool
     bexio_api_token_is_override: bool
@@ -63,6 +64,9 @@ def get_effective_config(db: Session, settings: Settings | None = None) -> Effec
             if row and row.current_planning_year is not None
             else settings.current_planning_year
         ),
+        bed_capacity=(
+            row.bed_capacity if row and row.bed_capacity is not None else settings.bed_capacity
+        ),
         bexio_client_id_is_override=bool(row and row.bexio_client_id),
         bexio_client_secret_is_override=bool(row and row.bexio_client_secret),
         bexio_api_token_is_override=bool(row and row.bexio_api_token),
@@ -77,6 +81,7 @@ def save_admin_config(
     allocation_mode: str | None = None,
     monthly_budget_chf: Decimal | None = None,
     current_planning_year: int | None = None,
+    bed_capacity: int | None = None,
     clear_bexio_credentials: bool = False,
 ) -> AdminConfig:
     """Speichert Overrides. Leere/None-Werte lassen das jeweilige Feld unveraendert
@@ -105,6 +110,8 @@ def save_admin_config(
         row.monthly_budget_chf = monthly_budget_chf
     if current_planning_year is not None:
         row.current_planning_year = current_planning_year
+    if bed_capacity is not None:
+        row.bed_capacity = bed_capacity
 
     row.updated_at = dt.datetime.now(dt.timezone.utc)
     db.commit()

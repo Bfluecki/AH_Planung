@@ -77,18 +77,83 @@
             </div>
         </section>
 
+        <section class="chart-card">
+            <h2>Auslastung (Belegungsgrad) pro Monat</h2>
+            {% if bed_capacity and bed_capacity > 0 %}
+            <p class="hint">Verrechnete Übernachtungen (PAX-Nächte) im Verhältnis zur Kapazität ({{ bed_capacity }} Betten × Nächte des Monats).</p>
+            <svg viewBox="0 0 {{ occ_chart.width }} {{ occ_chart.height }}" width="100%" role="img" aria-label="Auslastung pro Monat">
+                {% for g in occ_chart.gridlines %}
+                <line x1="{{ occ_chart.left_pad }}" y1="{{ g.y }}" x2="{{ occ_chart.right_x }}" y2="{{ g.y }}" stroke="#e0d8ca" stroke-width="1"/>
+                <text x="{{ occ_chart.left_pad - 6 }}" y="{{ g.y + 3 }}" text-anchor="end" font-size="10" fill="#6b6459">{{ g.label }}%</text>
+                {% endfor %}
+                {% for b in occ_chart.bars %}
+                <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="#7a2733" rx="2"/>
+                <text x="{{ b.label_x }}" y="{{ occ_chart.baseline_y + 15 }}" text-anchor="middle" font-size="10" fill="#6b6459">{{ b.label }}</text>
+                {% endfor %}
+            </svg>
+            <table style="margin-top:1rem;">
+                <thead><tr><th class="text-col">Monat</th><th>Übernachtungen Ist</th><th>Kapazität</th><th>Belegungsgrad</th></tr></thead>
+                <tbody>
+                    {% for o in occupancy %}
+                    <tr>
+                        <td class="text-col">{{ month_abbr[o.month - 1] }}</td>
+                        <td>{{ o.pax_nights_ist|swissnum(0) }}</td>
+                        <td>{{ o.capacity }}</td>
+                        <td>{{ o.occupancy_pct|swissnum(1) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty">Keine Bettenkapazität hinterlegt – im Admin unter «Bettenkapazität» eintragen, dann wird der Belegungsgrad berechnet.</p>
+            {% endif %}
+        </section>
+
+        <section class="chart-card">
+            <h2>Ø-Umsatz</h2>
+            <div class="kpi-grid">
+                <div class="kpi">
+                    <div class="kpi-label">Ø Umsatz pro Anlass</div>
+                    <div class="kpi-value">{% if averages.avg_per_booking is not none %}{{ averages.avg_per_booking|swissnum }}{% else %}–{% endif %}</div>
+                    <div class="kpi-sub">{{ averages.booking_count }} verrechnete Buchungen</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Ø Umsatz pro PAX-Nacht</div>
+                    <div class="kpi-value">{% if averages.avg_per_pax_night is not none %}{{ averages.avg_per_pax_night|swissnum }}{% else %}–{% endif %}</div>
+                    <div class="kpi-sub">{{ averages.pax_nights_total|swissnum(0) }} PAX-Nächte gesamt</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="chart-card">
+            <h2>Top-Kunden {{ year }}</h2>
+            <p class="hint">Nach verrechnetem Umsatz. «Wiederkehrer» = Kunde mit Buchungen auch in anderen Jahren.</p>
+            <table>
+                <thead><tr><th class="text-col">Kunde</th><th>Umsatz Ist</th><th>Buchungen</th><th class="text-col">Wiederkehrer</th></tr></thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td class="text-col">{{ c.kunde }}</td>
+                        <td>{{ c.umsatz_ist|swissnum }}</td>
+                        <td>{{ c.booking_count }}</td>
+                        <td class="text-col">{{ "★ ja" if c.is_returning else "–" }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="empty">Keine verrechneten Buchungen im {{ year }}.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
         <section class="doc">
             <h2>Geplante weitere Auswertungen</h2>
             <p>Vorschlag für den weiteren Ausbau der Performance-Analyse – priorisiert nach Nutzen:</p>
             <table>
                 <tr><th>Kennzahl / Grafik</th><th>Nutzen</th></tr>
-                <tr><td><strong>Auslastung (Belegungsgrad)</strong> pro Monat</td><td>Übernachtungen im Verhältnis zur verfügbaren Kapazität (Betten × Nächte) – zeigt Leerstand und Spitzen.</td></tr>
                 <tr><td><strong>Ertragsart-Mix</strong> (Übernachtung / Verpflegung / Raum / Kurtaxe …)</td><td>Wovon lebt der Betrieb? Verschiebungen über die Jahre erkennen.</td></tr>
                 <tr><td><strong>Kumulierte Zielerreichung</strong> (Jahresverlauf)</td><td>Liegt das Jahr per Stichtag vor oder hinter Budget? Frühwarnung.</td></tr>
-                <tr><td><strong>Top-Kunden / Wiederkehrer</strong></td><td>Welche Vereine/Kunden bringen den meisten Umsatz, wer kommt wiederholt?</td></tr>
                 <tr><td><strong>Pipeline-Wert</strong> (Angebote + Aufträge ohne Rechnung)</td><td>Erwarteter zukünftiger Umsatz, Planbarkeit der Folgemonate.</td></tr>
                 <tr><td><strong>Soll↔Ist-Genauigkeit im Zeitverlauf</strong></td><td>Wird die Planung über die Jahre treffsicherer? (bereits als KPI oben angelegt)</td></tr>
-                <tr><td><strong>Durchschnittlicher Umsatz pro Anlass / pro PAX-Nacht</strong></td><td>Preisdurchsetzung und Wertigkeit der Buchungen.</td></tr>
             </table>
             <div class="callout">Sag mir, welche dieser Auswertungen du zuerst möchtest – ich baue sie
             in derselben Systematik (aus denselben Bexio-Daten) dazu.</div>

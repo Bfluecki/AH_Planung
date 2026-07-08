@@ -18,7 +18,23 @@ from app.db import get_db
 from app.models import User
 
 ROLE_ADMIN = "admin"
-ROLE_USER = "user"
+ROLE_STIFTUNGSRAT = "stiftungsrat"
+ROLE_BETRIEBSLEITUNG = "betriebsleitung"
+ROLE_MITARBEITER = "mitarbeiter_betrieb"
+
+# Reihenfolge = Anzeige im Formular. Nur ROLE_ADMIN hat effektiv Admin-Rechte
+# (require_admin); die uebrigen Rollen sind organisatorische Einordnungen mit
+# identischem Lesezugriff (Dashboard/Auswertung).
+ALL_ROLES = [ROLE_ADMIN, ROLE_STIFTUNGSRAT, ROLE_BETRIEBSLEITUNG, ROLE_MITARBEITER]
+ROLE_LABELS = {
+    ROLE_ADMIN: "Admin",
+    ROLE_STIFTUNGSRAT: "Stiftungsrat",
+    ROLE_BETRIEBSLEITUNG: "Betriebsleitung",
+    ROLE_MITARBEITER: "Mitarbeiter Betrieb",
+}
+
+# Rueckwaertskompatibel: alter Default "user" bleibt gueltig, wird aber nicht mehr vergeben.
+ROLE_USER = ROLE_MITARBEITER
 _PBKDF2_ROUNDS = 200_000
 
 
@@ -45,8 +61,23 @@ def get_user_by_username(db: Session, username: str) -> User | None:
     return db.query(User).filter(User.username == username).one_or_none()
 
 
-def create_user(db: Session, username: str, password: str, role: str = ROLE_USER) -> User:
-    user = User(username=username.strip(), password_hash=hash_password(password), role=role)
+def create_user(
+    db: Session,
+    username: str,
+    password: str,
+    role: str = ROLE_MITARBEITER,
+    first_name: str = "",
+    last_name: str = "",
+    email: str = "",
+) -> User:
+    user = User(
+        username=username.strip(),
+        password_hash=hash_password(password),
+        role=role if role in ALL_ROLES else ROLE_MITARBEITER,
+        first_name=first_name.strip(),
+        last_name=last_name.strip(),
+        email=email.strip(),
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
