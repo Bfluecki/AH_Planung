@@ -352,6 +352,24 @@ def full_sync(db: Session, settings: Settings | None = None) -> dict:
 # ----------------------------------------------------------------------
 # Transformationspipeline: Verkettung + Abgrenzung + Soll/Ist (Konzept Abschnitt 6)
 # ----------------------------------------------------------------------
+def _credit_voucher_net(invoice: Invoice) -> Decimal | None:
+    """Verrechnete Gutschriften einer Rechnung, umgerechnet auf netto.
+
+    Bexio's kb_credit_voucher-Endpunkt liefert 404 (siehe sync_credit_notes), aber
+    jede Rechnung traegt "total_credit_vouchers" (brutto, wie total_gross). Fuer den
+    netto ausgewiesenen Umsatz wird der Betrag im Verhaeltnis net/gross umgerechnet.
+    None, wenn keine Gutschrift verrechnet wurde."""
+    raw = invoice.raw or {}
+    credit_gross = _to_decimal(raw.get("total_credit_vouchers"))
+    if credit_gross <= 0:
+        return None
+    gross = _to_decimal(raw.get("total_gross"))
+    net = _to_decimal(raw.get("total_net"))
+    if gross > 0 and net > 0:
+        return (credit_gross * net / gross).quantize(Decimal("0.01"))
+    return credit_gross
+
+
 def _document_metrics(
     db: Session,
     document_type: str,
@@ -451,11 +469,19 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
             else None
         )
 
+        credit_note_total = credit_note_row.total if credit_note_row else None
+        if credit_note_total is None and invoice_row is not None:
+            # Bexio liefert kb_credit_voucher nicht per API (404), aber jede Rechnung
+            # traegt "total_credit_vouchers" - darueber koennen verrechnete
+            # Gutschriften trotzdem vom Ist-Umsatz abgezogen werden (verifiziert
+            # gegen das Buchhaltungsjournal 2025: 11 Gutschrift-Buchungen).
+            credit_note_total = _credit_voucher_net(invoice_row)
+
         booking_metrics = compute_booking_metrics(
             quote=quote_metrics,
             order=order_metrics,
             invoice=invoice_metrics,
-            credit_note_total=credit_note_row.total if credit_note_row else None,
+            credit_note_total=credit_note_total,
         )
 
         booking = db.query(Booking).filter_by(booking_key=chain.booking_key).one_or_none()

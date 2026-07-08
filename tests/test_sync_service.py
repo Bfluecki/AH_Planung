@@ -161,3 +161,26 @@ def test_explicit_pax_field_takes_precedence_over_derivation(db_session):
 
     metrics = _document_metrics(db_session, "order", 3, total=Decimal("1000"), physical_nights=4)
     assert metrics.pax == 7  # nicht 4 - explizites Feld gewinnt gegenueber Herleitung
+
+
+def test_credit_voucher_net_converts_gross_to_net():
+    from app.models import Invoice
+    from app.sync.service import _credit_voucher_net
+
+    # Rechnung 1081 brutto / 1000 netto, davon 108.10 brutto per Gutschrift verrechnet
+    # -> netto-Anteil 100.00.
+    inv = Invoice(
+        id=1, document_nr="RE-001", total=Decimal("1000.00"),
+        raw={"total_gross": "1081.00", "total_net": "1000.00", "total_credit_vouchers": "108.10"},
+    )
+    assert _credit_voucher_net(inv) == Decimal("100.00")
+
+
+def test_credit_voucher_net_returns_none_without_vouchers():
+    from app.models import Invoice
+    from app.sync.service import _credit_voucher_net
+
+    inv = Invoice(id=2, document_nr="RE-002", total=Decimal("500.00"),
+                   raw={"total_gross": "540.50", "total_net": "500.00", "total_credit_vouchers": "0.000000"})
+    assert _credit_voucher_net(inv) is None
+    assert _credit_voucher_net(Invoice(id=3, document_nr="RE-003", total=Decimal("1"), raw={})) is None
