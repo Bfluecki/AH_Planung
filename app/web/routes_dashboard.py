@@ -11,6 +11,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
+from app.audit import log_action
+from app.auth import User, require_login
 from app.budget import save_budget_override
 from app.config import get_settings
 from app.db import get_db
@@ -44,6 +46,7 @@ def dashboard(
     year: int | None = None,
     status: list[str] = Query(default=DEFAULT_STATUSES),
     db: Session = Depends(get_db),
+    user: User = Depends(require_login),
 ):
     settings = get_settings()
     effective = get_effective_config(db, settings)
@@ -63,12 +66,13 @@ def dashboard(
             "month_names": MONTH_NAMES_DE,
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,
+            "current_user": user.username,
         },
     )
 
 
 @router.get("/hilfe")
-def hilfe(request: Request):
+def hilfe(request: Request, user: User = Depends(require_login)):
     return templates.TemplateResponse("hilfe.html", {"request": request})
 
 
@@ -79,6 +83,7 @@ def save_budget(
     budget_chf: str = Form(...),
     status: list[str] = Form(default=DEFAULT_STATUSES),
     db: Session = Depends(get_db),
+    user: User = Depends(require_login),
 ):
     try:
         value = Decimal(budget_chf.replace("'", "").strip())
@@ -86,5 +91,6 @@ def save_budget(
         value = None
     if value is not None:
         save_budget_override(db, year, month, value)
+        log_action(db, user.username, "budget_change", f"{year}-{month:02d} = {value}")
     query = urlencode([("year", year)] + [("status", s) for s in status])
     return RedirectResponse(url=f"/?{query}", status_code=303)

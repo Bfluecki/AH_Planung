@@ -2,17 +2,25 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Admin – AH Planung</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin – Aarbergerhus</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <header>
-        <h1>Admin – Konfiguration</h1>
+        <div class="brand">
+            <h1>Aarbergerhus</h1>
+            <span class="brand-sub">Administration</span>
+        </div>
         <nav>
-            <a href="/">&larr; Zurück zum Dashboard</a>
+            <a href="/">&larr; Dashboard</a>
+            <a href="#benutzer">Benutzer</a>
+            <a href="#log">Log</a>
+            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
         </nav>
     </header>
 
+    <div class="content">
     {% if message %}
     <section>
         <p class="notice">{{ message }}</p>
@@ -116,5 +124,109 @@
         </form>
         {% endif %}
     </section>
+
+    <section id="benutzer">
+        <h2>Benutzerverwaltung</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th class="text-col">Benutzer</th>
+                    <th class="text-col">Rolle</th>
+                    <th class="text-col">Status</th>
+                    <th class="text-col">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td class="text-col">{{ u.username }}</td>
+                    <td class="text-col">
+                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                            <input type="hidden" name="action" value="role">
+                            <select name="value" onchange="this.form.submit()">
+                                {% for r in roles %}
+                                <option value="{{ r }}" {{ "selected" if r == u.role else "" }}>{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
+                    <td class="text-col">{{ "aktiv" if u.is_active else "deaktiviert" }}</td>
+                    <td class="text-col">
+                        {% if u.is_active %}
+                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                            <input type="hidden" name="action" value="deactivate">
+                            <button type="submit">Deaktivieren</button>
+                        </form>
+                        {% else %}
+                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                            <input type="hidden" name="action" value="activate">
+                            <button type="submit">Aktivieren</button>
+                        </form>
+                        {% endif %}
+                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                            <input type="hidden" name="action" value="password">
+                            <input type="password" name="value" placeholder="neues Passwort" size="14">
+                            <button type="submit">Setzen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>Neuen Benutzer anlegen</h3>
+        <form action="/admin/users/create" method="post">
+            <table class="admin-form">
+                <tr>
+                    <td><label for="new_username">Benutzername</label></td>
+                    <td><input type="text" id="new_username" name="new_username" autocomplete="off"></td>
+                </tr>
+                <tr>
+                    <td><label for="new_password">Passwort</label></td>
+                    <td><input type="password" id="new_password" name="new_password" autocomplete="new-password"></td>
+                </tr>
+                <tr>
+                    <td><label for="new_role">Rolle</label></td>
+                    <td>
+                        <select id="new_role" name="new_role">
+                            {% for r in roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="source-tag">admin = Vollzugriff · user = nur Dashboard/Auswertung</span>
+                    </td>
+                </tr>
+            </table>
+            <button type="submit" class="primary">Benutzer anlegen</button>
+        </form>
+    </section>
+
+    <section id="log">
+        <h2>Aktivitätsprotokoll</h2>
+        <p class="hint">Letzte 80 Ereignisse (Login, Synchronisation, Konfigurations- und Benutzeränderungen).</p>
+        <table>
+            <thead>
+                <tr>
+                    <th class="text-col">Zeitpunkt (UTC)</th>
+                    <th class="text-col">Benutzer</th>
+                    <th class="text-col">Aktion</th>
+                    <th class="text-col">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in audit_entries %}
+                <tr>
+                    <td class="text-col">{{ e.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+                    <td class="text-col">{{ e.username }}</td>
+                    <td class="text-col">{{ e.action }}</td>
+                    <td class="text-col">{{ e.detail }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">Noch keine Einträge.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    </div>
 </body>
 </html>

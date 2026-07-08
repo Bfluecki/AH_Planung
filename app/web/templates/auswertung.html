@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Auswertung – Aarbergerhus</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <h1>Aarbergerhus</h1>
+            <span class="brand-sub">Auswertung {{ year }}</span>
+        </div>
+        <nav>
+            <a href="/?year={{ year }}">&larr; Dashboard</a>
+            {% for y in years %}
+            <a href="/auswertung?year={{ y }}" {{ 'class=button' if y == year else '' }}>{{ y }}</a>
+            {% endfor %}
+            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
+        </nav>
+    </header>
+
+    <div class="content">
+        <section>
+            <div class="kpi-grid">
+                <div class="kpi">
+                    <div class="kpi-label">Umsatz Ist {{ year }}</div>
+                    <div class="kpi-value">{{ current_fig.umsatz_ist|swissnum }}</div>
+                    <div class="kpi-sub">Soll (bestellt): {{ current_fig.umsatz_soll|swissnum }}</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Zielerreichung</div>
+                    <div class="kpi-value">{{ current_fig.zielerreichung_pct|swissnum(1) }}%</div>
+                    <div class="kpi-sub">Budget: {{ current_fig.budget|swissnum }}</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Vorjahresvergleich</div>
+                    <div class="kpi-value">
+                        {% if yoy_pct is not none %}{{ '+' if yoy_pct >= 0 else '' }}{{ yoy_pct|swissnum(1) }}%{% else %}–{% endif %}
+                    </div>
+                    <div class="kpi-sub">ggü. {{ prev_year }}</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Übernachtungen Ist</div>
+                    <div class="kpi-value">{{ current_fig.pax_nights_ist|swissnum(0) }}</div>
+                    <div class="kpi-sub">PAX-Nächte im Leistungsjahr</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Prognose-Genauigkeit</div>
+                    <div class="kpi-value">
+                        {% if accuracy.mean_abs_deviation_pct is not none %}±{{ accuracy.mean_abs_deviation_pct|swissnum(1) }}%{% else %}–{% endif %}
+                    </div>
+                    <div class="kpi-sub">Ø Abweichung Ist↔Soll ({{ accuracy.booking_count }} Buchungen)</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="chart-card">
+            <h2>Jahresvergleich – Umsatz Ist pro Monat</h2>
+            <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" width="100%" role="img" aria-label="Jahresvergleich Umsatz Ist">
+                {% for g in chart.gridlines %}
+                <line x1="{{ chart.left_pad }}" y1="{{ g.y }}" x2="{{ chart.right_x }}" y2="{{ g.y }}" stroke="#e0d8ca" stroke-width="1"/>
+                <text x="{{ chart.left_pad - 6 }}" y="{{ g.y + 3 }}" text-anchor="end" font-size="10" fill="#6b6459">{{ g.label }}</text>
+                {% endfor %}
+                {% for xl in chart.xlabels %}
+                <text x="{{ xl.x }}" y="{{ chart.baseline_y + 15 }}" text-anchor="middle" font-size="10" fill="#6b6459">{{ xl.label }}</text>
+                {% endfor %}
+                {% for s in chart.series %}
+                <polyline points="{{ s.points }}" fill="none" stroke="{{ s.color }}" stroke-width="2" stroke-linejoin="round"/>
+                {% endfor %}
+            </svg>
+            <div class="chart-legend">
+                {% for s in chart.series %}
+                <span><span class="swatch" style="background: {{ s.color }}"></span>{{ s.year }}</span>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="doc">
+            <h2>Geplante weitere Auswertungen</h2>
+            <p>Vorschlag für den weiteren Ausbau der Performance-Analyse – priorisiert nach Nutzen:</p>
+            <table>
+                <tr><th>Kennzahl / Grafik</th><th>Nutzen</th></tr>
+                <tr><td><strong>Auslastung (Belegungsgrad)</strong> pro Monat</td><td>Übernachtungen im Verhältnis zur verfügbaren Kapazität (Betten × Nächte) – zeigt Leerstand und Spitzen.</td></tr>
+                <tr><td><strong>Ertragsart-Mix</strong> (Übernachtung / Verpflegung / Raum / Kurtaxe …)</td><td>Wovon lebt der Betrieb? Verschiebungen über die Jahre erkennen.</td></tr>
+                <tr><td><strong>Kumulierte Zielerreichung</strong> (Jahresverlauf)</td><td>Liegt das Jahr per Stichtag vor oder hinter Budget? Frühwarnung.</td></tr>
+                <tr><td><strong>Top-Kunden / Wiederkehrer</strong></td><td>Welche Vereine/Kunden bringen den meisten Umsatz, wer kommt wiederholt?</td></tr>
+                <tr><td><strong>Pipeline-Wert</strong> (Angebote + Aufträge ohne Rechnung)</td><td>Erwarteter zukünftiger Umsatz, Planbarkeit der Folgemonate.</td></tr>
+                <tr><td><strong>Soll↔Ist-Genauigkeit im Zeitverlauf</strong></td><td>Wird die Planung über die Jahre treffsicherer? (bereits als KPI oben angelegt)</td></tr>
+                <tr><td><strong>Durchschnittlicher Umsatz pro Anlass / pro PAX-Nacht</strong></td><td>Preisdurchsetzung und Wertigkeit der Buchungen.</td></tr>
+            </table>
+            <div class="callout">Sag mir, welche dieser Auswertungen du zuerst möchtest – ich baue sie
+            in derselben Systematik (aus denselben Bexio-Daten) dazu.</div>
+        </section>
+    </div>
+</body>
+</html>

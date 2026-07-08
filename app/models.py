@@ -28,6 +28,38 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+class User(Base):
+    """Anwender-Konto mit Rolle. role="admin" hat Vollzugriff (inkl. Benutzer-
+    verwaltung, Bexio-Config, Log); role="user" sieht nur Dashboard/Auswertung.
+    Passwoerter werden nur als Hash gespeichert (siehe app/auth.py)."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, default="user")  # "admin" | "user"
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
+    )
+
+
+class AuditLog(Base):
+    """Protokoll sicherheits-/nachvollziehbarkeitsrelevanter Aktionen (Login, Sync,
+    Config-/Budget-Aenderung, Benutzerverwaltung). Siehe app/audit.py."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc), index=True
+    )
+    username: Mapped[str] = mapped_column(String, default="")
+    action: Mapped[str] = mapped_column(String, default="")
+    detail: Mapped[str] = mapped_column(String, default="")
+
+
 class OAuthToken(Base):
     """Singleton-Tabelle (id=1) fuer den aktuellen Bexio-Token-Satz."""
 

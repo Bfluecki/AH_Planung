@@ -1,5 +1,4 @@
 import datetime as dt
-import os
 from decimal import Decimal
 
 import pytest
@@ -7,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth import ROLE_ADMIN, create_user
 from app.config import get_settings
 from app.db import Base, get_db
 from app.models import Booking, Invoice, LineItem, MonthlyAllocation
@@ -14,7 +14,6 @@ from app.models import Booking, Invoice, LineItem, MonthlyAllocation
 
 @pytest.fixture
 def client():
-    os.environ["ADMIN_PASSWORD"] = "testpass123"
     get_settings.cache_clear()
 
     # StaticPool + check_same_thread=False: alle Sessions teilen dieselbe In-Memory-DB
@@ -25,8 +24,14 @@ def client():
     Base.metadata.create_all(engine)
     TestSession = sessionmaker(bind=engine)
 
-    from app.main import app
+    # Admin-Benutzer fuer den Session-Login anlegen.
+    seed = TestSession()
+    create_user(seed, "admin", "testpass123", role=ROLE_ADMIN)
+    seed.close()
+
     from fastapi.testclient import TestClient
+
+    from app.main import app
 
     def override_get_db():
         db = TestSession()
@@ -36,9 +41,11 @@ def client():
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app), TestSession
+    test_client = TestClient(app)
+    # Anmelden -> Session-Cookie wird im TestClient gehalten.
+    test_client.post("/login", data={"username": "admin", "password": "testpass123"})
+    yield test_client, TestSession
     app.dependency_overrides.clear()
-    os.environ.pop("ADMIN_PASSWORD", None)
     get_settings.cache_clear()
 
 
@@ -90,8 +97,10 @@ def test_product_summary_filters_by_document_type(client):
 
 def test_product_summary_requires_auth(client):
     test_client, _ = client
-    response = test_client.get("/admin/debug/product-summary")
-    assert response.status_code == 401
+    test_client.get("/logout")  # Session beenden -> anonym
+    response = test_client.get("/admin/debug/product-summary", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
 
 
 def test_revenue_reconciliation_groups_by_invoice_and_service_year(client):
@@ -131,5 +140,69 @@ def test_revenue_reconciliation_groups_by_invoice_and_service_year(client):
 
 def test_revenue_reconciliation_requires_auth(client):
     test_client, _ = client
-    response = test_client.get("/admin/debug/revenue-reconciliation")
-    assert response.status_code == 401
+    test_client.get("/logout")
+    response = test_client.get("/admin/debug/revenue-reconciliation", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
+def test_admin_can_create_user_and_it_appears(client):
+    test_client, TestSession = client
+    resp = test_client.post(
+        "/admin/users/create",
+        data={"new_username": "hans", "new_password": "pw12345", "new_role": "user"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    from app.auth import get_user_by_username
+    db = TestSession()
+    u = get_user_by_username(db, "hans")
+    assert u is not None and u.role == "user" and u.is_active
+    db.close()
+
+
+def test_cannot_deactivate_last_admin(client):
+    test_client, TestSession = client
+    from app.models import User
+    db = TestSession()
+    admin = db.query(User).filter(User.role == "admin").first()
+    admin_id = admin.id
+    db.close()
+    resp = test_client.post(f"/admin/users/{admin_id}/update", data={"action": "deactivate"})
+    assert resp.status_code == 200  # Fehlermeldung, kein Redirect
+    db = TestSession()
+    assert db.get(User, admin_id).is_active is True
+    db.close()
+
+
+def test_normal_user_cannot_reach_admin(client):
+    test_client, TestSession = client
+    from app.auth import create_user
+    db = TestSession()
+    create_user(db, "normalo", "pw12345", role="user")
+    db.close()
+    test_client.get("/logout")
+    test_client.post("/login", data={"username": "normalo", "password": "pw12345"})
+    resp = test_client.get("/admin", follow_redirects=False)
+    assert resp.status_code == 403
+
+
+def test_audit_log_records_login_and_user_create(client):
+    test_client, TestSession = client
+    test_client.post(
+        "/admin/users/create",
+        data={"new_username": "lea", "new_password": "pw12345", "new_role": "user"},
+    )
+    from app.audit import recent_entries
+    db = TestSession()
+    actions = {e.action for e in recent_entries(db, 50)}
+    db.close()
+    assert "login" in actions
+    assert "user_create" in actions
+
+
+def test_analytics_page_loads(client):
+    test_client, _ = client
+    resp = test_client.get("/auswertung?year=2026")
+    assert resp.status_code == 200
+    assert "Jahresvergleich" in resp.text

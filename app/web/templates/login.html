@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Anmelden – Aarbergerhus</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-wrap">
+        <h1>Aarbergerhus</h1>
+        <p class="brand-sub" style="color:var(--color-gold);font-style:italic;">Umsatzplanung</p>
+        <form action="/login" method="post">
+            <label for="username">Benutzername</label>
+            <input type="text" id="username" name="username" autofocus autocomplete="username">
+            <label for="password">Passwort</label>
+            <input type="password" id="password" name="password" autocomplete="current-password">
+            {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
+            <button type="submit" class="primary">Anmelden</button>
+        </form>
+    </div>
+</body>
+</html>

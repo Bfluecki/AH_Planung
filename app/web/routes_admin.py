@@ -1,8 +1,8 @@
-"""Admin-Seite: Bexio-Zugangsdaten und Planungsparameter zur Laufzeit verwalten.
+"""Admin-Seite: Bexio-Zugangsdaten, Planungsparameter, Benutzerverwaltung und Log.
 
-Geschuetzt durch HTTP Basic Auth (siehe app/web/auth.py). Das Bexio-Client-Secret
-wird nie im Klartext an den Browser zurueckgegeben - das Formularfeld ist immer
-leer und ein Absenden ohne Eingabe laesst den gespeicherten Wert unveraendert.
+Geschuetzt durch Session-Login mit Rolle "admin" (siehe app/auth.py). Das Bexio-
+Client-Secret wird nie im Klartext an den Browser zurueckgegeben - das Formularfeld
+ist immer leer und ein Absenden ohne Eingabe laesst den gespeicherten Wert unveraendert.
 """
 from __future__ import annotations
 
@@ -14,13 +14,23 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from app import auth
 from app.admin_config import get_effective_config, save_admin_config
+from app.audit import log_action, recent_entries
+from app.auth import ROLE_ADMIN, ROLE_USER, User, require_admin
 from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
 from app.domain.product_mapping import ErtragsArt, ertragsart_fuer
-from app.models import CreditNote, Invoice, LineItem, MonthlyAllocation, OAuthToken, Order, Quote
-from app.web.auth import require_admin_auth
+from app.models import (
+    CreditNote,
+    Invoice,
+    LineItem,
+    MonthlyAllocation,
+    OAuthToken,
+    Order,
+    Quote,
+)
 
 _DOCUMENT_MODELS = {
     "quote": Quote,
@@ -29,11 +39,11 @@ _DOCUMENT_MODELS = {
     "credit_note": CreditNote,
 }
 
-router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin_auth)])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
-def _context(request: Request, db: Session, message: str | None = None) -> dict:
+def _context(request: Request, db: Session, user: User, message: str | None = None) -> dict:
     settings = get_settings()
     effective = get_effective_config(db, settings)
     token = db.get(OAuthToken, 1)
@@ -44,17 +54,25 @@ def _context(request: Request, db: Session, message: str | None = None) -> dict:
         "redirect_uri": settings.bexio_redirect_uri,
         "token": token,
         "allocation_modes": [ALLOCATION_MODE_PRORATA, ALLOCATION_MODE_FULL_MONTH],
+        "current_user": user.username,
+        "users": db.query(User).order_by(User.username).all(),
+        "audit_entries": recent_entries(db, limit=80),
+        "roles": [ROLE_ADMIN, ROLE_USER],
     }
 
 
 @router.get("")
-def admin_page(request: Request, db: Session = Depends(get_db)):
+def admin_page(request: Request, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     message = None
     if request.query_params.get("saved"):
         message = "Gespeichert."
     elif request.query_params.get("cleared"):
         message = "Bexio-Zugangsdaten-Override (Client-ID/Secret/API-Token) entfernt, Env-Variablen gelten wieder."
-    return templates.TemplateResponse("admin.html", _context(request, db, message))
+    elif request.query_params.get("user_created"):
+        message = "Benutzer angelegt."
+    elif request.query_params.get("user_updated"):
+        message = "Benutzer aktualisiert."
+    return templates.TemplateResponse("admin.html", _context(request, db, user, message))
 
 
 @router.post("/save")
@@ -67,6 +85,7 @@ def admin_save(
     monthly_budget_chf: str = Form(""),
     current_planning_year: str = Form(""),
     db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
 ):
     budget = None
     if monthly_budget_chf.strip():
@@ -74,7 +93,7 @@ def admin_save(
             budget = Decimal(monthly_budget_chf.strip())
         except InvalidOperation:
             return templates.TemplateResponse(
-                "admin.html", _context(request, db, "Ungueltiges Budget-Format.")
+                "admin.html", _context(request, db, user, "Ungueltiges Budget-Format.")
             )
 
     year = None
@@ -83,7 +102,7 @@ def admin_save(
             year = int(current_planning_year.strip())
         except ValueError:
             return templates.TemplateResponse(
-                "admin.html", _context(request, db, "Ungueltiges Jahr-Format.")
+                "admin.html", _context(request, db, user, "Ungueltiges Jahr-Format.")
             )
 
     save_admin_config(
@@ -95,13 +114,73 @@ def admin_save(
         monthly_budget_chf=budget,
         current_planning_year=year,
     )
+    log_action(db, user.username, "config_save", f"mode={allocation_mode} year={year}")
     return RedirectResponse(url="/admin?saved=1", status_code=303)
 
 
 @router.post("/clear-bexio-credentials")
-def admin_clear_bexio(db: Session = Depends(get_db)):
+def admin_clear_bexio(db: Session = Depends(get_db), user: User = Depends(require_admin)):
     save_admin_config(db, clear_bexio_credentials=True)
+    log_action(db, user.username, "config_clear_bexio")
     return RedirectResponse(url="/admin?cleared=1", status_code=303)
+
+
+# ------------------------------------------------------------------ Benutzerverwaltung
+@router.post("/users/create")
+def admin_create_user(
+    request: Request,
+    new_username: str = Form(...),
+    new_password: str = Form(...),
+    new_role: str = Form(ROLE_USER),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    uname = new_username.strip()
+    role = new_role if new_role in (ROLE_ADMIN, ROLE_USER) else ROLE_USER
+    if not uname or not new_password:
+        return templates.TemplateResponse(
+            "admin.html", _context(request, db, user, "Benutzername und Passwort sind erforderlich.")
+        )
+    if auth.get_user_by_username(db, uname):
+        return templates.TemplateResponse(
+            "admin.html", _context(request, db, user, f"Benutzer «{uname}» existiert bereits.")
+        )
+    auth.create_user(db, uname, new_password, role=role)
+    log_action(db, user.username, "user_create", f"{uname} ({role})")
+    return RedirectResponse(url="/admin?user_created=1#benutzer", status_code=303)
+
+
+@router.post("/users/{user_id}/update")
+def admin_update_user(
+    user_id: int,
+    request: Request,
+    action: str = Form(...),  # "activate" | "deactivate" | "password" | "role"
+    value: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    target = db.get(User, user_id)
+    if target is None:
+        return RedirectResponse(url="/admin#benutzer", status_code=303)
+
+    if action == "deactivate":
+        # Letzten aktiven Admin nicht deaktivieren - sonst sperrt man sich aus.
+        active_admins = db.query(User).filter(User.role == ROLE_ADMIN, User.is_active).count()
+        if target.role == ROLE_ADMIN and active_admins <= 1:
+            return templates.TemplateResponse(
+                "admin.html",
+                _context(request, db, user, "Der letzte aktive Administrator kann nicht deaktiviert werden."),
+            )
+        target.is_active = False
+    elif action == "activate":
+        target.is_active = True
+    elif action == "password" and value.strip():
+        target.password_hash = auth.hash_password(value.strip())
+    elif action == "role" and value in (ROLE_ADMIN, ROLE_USER):
+        target.role = value
+    db.commit()
+    log_action(db, user.username, "user_update", f"{target.username}: {action} {value if action=='role' else ''}".strip())
+    return RedirectResponse(url="/admin?user_updated=1#benutzer", status_code=303)
 
 
 @router.get("/debug/line-items")
