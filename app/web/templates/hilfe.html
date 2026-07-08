@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hilfe & Erklärung – Aarbergerhus Umsatzplanung</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <h1>Aarbergerhus</h1>
+            <span class="brand-sub">Hilfe & Erklärung</span>
+        </div>
+        <nav>
+            <a href="/">&larr; Zurück zum Dashboard</a>
+        </nav>
+    </header>
+
+    <div class="content doc">
+        <p>Diese Seite erklärt, wie das Planungstool die Zahlen berechnet – damit alle
+        Anwenderinnen und Anwender die Auswertungen richtig interpretieren.</p>
+
+        <h2>1. Woher kommen die Daten?</h2>
+        <p>Alle Zahlen stammen <strong>direkt aus Bexio</strong>. Das Tool lädt (nur lesend,
+        es verändert in Bexio nichts) alle Angebote, Aufträge, Rechnungen und Gutschriften
+        und verknüpft sie zu «Buchungen». Mit «Jetzt synchronisieren» werden die neusten
+        Daten geholt; ansonsten geschieht das automatisch stündlich.</p>
+        <div class="callout">Wichtig: Reine Buchhaltungsbuchungen ohne Rechnung (z.&nbsp;B.
+        manuelle Ertragsbuchungen, Barkasse) erscheinen <strong>nicht</strong> im Tool –
+        es wertet die Belegkette Angebot → Auftrag → Rechnung aus, nicht die Buchhaltung.</div>
+
+        <h2>2. Soll und Ist – der zentrale Unterschied</h2>
+        <table>
+            <tr><th>Begriff</th><th>Quelle</th><th>Bedeutung</th></tr>
+            <tr><td><strong>Soll</strong></td><td>Auftrag (bzw. Angebot)</td><td>Was <em>bestellt / reserviert</em> wurde – die geplante Grösse.</td></tr>
+            <tr><td><strong>Ist</strong></td><td>Rechnung (± Gutschrift)</td><td>Was <em>tatsächlich verrechnet</em> wurde.</td></tr>
+            <tr><td><strong>Diff</strong></td><td>Ist − Soll</td><td>Abweichung, z.&nbsp;B. wenn weniger Teilnehmer kamen als gebucht.</td></tr>
+        </table>
+        <p>Beispiel: Ein Kunde bestellt 30 Personen (Soll), effektiv erscheinen 28 und werden
+        verrechnet (Ist) → PAX-Diff = −2, und der Umsatz-Ist liegt entsprechend tiefer.</p>
+
+        <h2>3. Die drei Zeitachsen – periodengerechte Abgrenzung</h2>
+        <p>Eine Buchung hat drei verschiedene Daten, die auseinanderfallen können:</p>
+        <table>
+            <tr><th>Datum</th><th>Verwendung</th></tr>
+            <tr><td><strong>Leistungsdatum</strong> (Zeitraum des Anlasses)</td><td>Bestimmt, welchem <strong>Monat</strong> der Umsatz in der Planung zugeordnet wird.</td></tr>
+            <tr><td>Rechnungsdatum</td><td>Nur informativ – wann verrechnet wurde.</td></tr>
+            <tr><td>Zahlungsdatum</td><td>Nur informativ – wann bezahlt wurde.</td></tr>
+        </table>
+        <p>Das Tool ordnet den Umsatz also dem <strong>Leistungsmonat</strong> zu, nicht dem
+        Rechnungs- oder Zahlungsmonat. Ein Anlass Ende Juni, verrechnet im Juli, bezahlt im
+        August, erscheint in der Planung im <strong>Juni</strong>.</p>
+        <div class="callout">Deshalb stimmen diese Zahlen bewusst <strong>nicht</strong> mit
+        dem Bexio-Dashboard «Flüssige Mittel» überein: jenes zeigt Zahlungseingänge (Cash,
+        inkl. MwSt, nach Zahlungsdatum). Hier geht es um Rechnungsumsatz nach Leistungsmonat.</div>
+
+        <h3>Monatsübergreifende Anlässe (pro rata)</h3>
+        <p>Dauert ein Aufenthalt über einen Monatswechsel, wird der Umsatz <strong>anteilig
+        nach Übernachtungen</strong> auf die betroffenen Monate verteilt (z.&nbsp;B. 6 Nächte
+        im Juni, 2 im Juli).</p>
+
+        <h2>4. Übernachtungen, Tage und PAX-Nächte</h2>
+        <table>
+            <tr><th>Kennzahl</th><th>Bedeutung</th></tr>
+            <tr><td>Tage</td><td>Kalendertage, an denen etwas stattfindet.</td></tr>
+            <tr><td>Nächte</td><td>Physische Aufenthaltsdauer (z.&nbsp;B. 4 Nächte), unabhängig von der Personenzahl.</td></tr>
+            <tr><td><strong>PAX-Nächte / «Übernachtungen»</strong></td><td>Personen × Nächte – die von Bexio verrechnete Menge (z.&nbsp;B. 4 Personen × 4 Nächte = 16). Dies ist die Grösse in der Spalte «Übernachtung Soll/Ist» der Jahresübersicht.</td></tr>
+        </table>
+        <p>Die Teilnehmerzahl (PAX) wird hergeleitet aus «Übernachtungen ÷ Nächte», da Bexio
+        die Basis-Übernachtung «pro Person und Nacht» verrechnet.</p>
+
+        <h2>5. Status einer Buchung</h2>
+        <table>
+            <tr><th>Status</th><th>Bedeutung</th></tr>
+            <tr><td><span class="status status-nur_angebot">nur_angebot</span></td><td>Nur ein Angebot vorhanden (Pipeline), noch nicht bestätigt.</td></tr>
+            <tr><td><span class="status status-beauftragt">beauftragt</span></td><td>Auftrag bestätigt (Soll steht), aber noch keine Rechnung.</td></tr>
+            <tr><td><span class="status status-verrechnet">verrechnet</span></td><td>Rechnung gestellt (Ist steht). <strong>Standard-Ansicht.</strong></td></tr>
+            <tr><td><span class="status status-storniert">storniert</span></td><td>Rechnung storniert oder per Gutschrift vollständig aufgehoben → Ist = 0.</td></tr>
+        </table>
+        <p>Über den <strong>Status-Filter</strong> oben lassen sich weitere Status zuschalten;
+        standardmässig werden nur «verrechnet»-Buchungen angezeigt. Der Filter wirkt auf die
+        Jahresübersicht <em>und</em> die Detailtabellen.</p>
+
+        <h2>6. Verkettung (wie Angebot/Auftrag/Rechnung zusammenfinden)</h2>
+        <table>
+            <tr><th>Kennzeichen</th><th>Bedeutung</th></tr>
+            <tr><td><span class="linked-reference">reference</span></td><td>Über eine harte Bexio-Referenz verknüpft (zuverlässig).</td></tr>
+            <tr><td><span class="linked-heuristic">heuristic</span></td><td>Automatisch zugeordnet über Kunde + Titel + Zeitraum (bitte gelegentlich prüfen).</td></tr>
+            <tr><td><span class="linked-none">none</span></td><td>Eigenständige Buchung (z.&nbsp;B. Direktrechnung ohne Auftrag, oder reines Angebot).</td></tr>
+        </table>
+
+        <h2>7. Umsatz ohne MwSt</h2>
+        <p>Alle Umsätze werden <strong>netto</strong> (ohne Mehrwertsteuer) ausgewiesen, damit
+        sie mit der Ertragsrechnung vergleichbar sind.</p>
+
+        <h2>8. Budget</h2>
+        <p>Das Monatsbudget ist in der Jahresübersicht direkt editierbar (Feld anpassen, ✓
+        klicken). Ohne Anpassung gilt der Standardwert. «Abweichung» = Umsatz Ist − Budget,
+        «Zielerreichung» = Umsatz Ist ÷ Budget.</p>
+
+        <h2>9. Export & Auswertung</h2>
+        <p><strong>Excel-Export</strong> erzeugt die Übersicht plus ein Blatt pro Monat.
+        Die Seite <strong>Auswertung</strong> zeigt grafische Jahresvergleiche und Kennzahlen.</p>
+    </div>
+</body>
+</html>

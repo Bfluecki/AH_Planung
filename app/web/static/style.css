@@ -1,162 +1,193 @@
+/* Design im Stil Aarbergerhus / Ligerz (Weindorf am Bielersee): warme Naturtoene,
+   gedeckter Bordeaux-Akzent, elegante Serifen-Ueberschriften. Markenfarben/Logo
+   koennen bei Bedarf hier zentral angepasst werden. */
 :root {
-    --color-bg: #f7f7f5;
-    --color-fg: #2b2b28;
-    --color-accent: #1f4e78;
-    --color-positive: #1b7a3d;
-    --color-negative: #b3261e;
-    --color-border: #dcdcd6;
+    --color-bg: #f6f2ea;          /* warmes Creme */
+    --color-surface: #ffffff;
+    --color-fg: #2c2822;          /* dunkles Braungrau */
+    --color-muted: #6b6459;
+    --color-accent: #7a2733;      /* Bordeaux */
+    --color-accent-dark: #5c1c26;
+    --color-gold: #b08a4f;        /* gedecktes Gold */
+    --color-positive: #3f7a4f;
+    --color-negative: #a5323f;
+    --color-border: #e0d8ca;
+    --color-row-alt: #faf7f1;
+    --radius: 6px;
+    --shadow: 0 1px 3px rgba(60, 45, 30, 0.08);
 }
 
 * { box-sizing: border-box; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif;
     background: var(--color-bg);
     color: var(--color-fg);
     margin: 0;
-    padding: 0 1.5rem 3rem;
+    padding: 0 0 4rem;
+    line-height: 1.5;
 }
 
+h1, h2, h3 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--color-accent-dark);
+}
+
+a { color: var(--color-accent); }
+
+/* ---- Kopfzeile / Navigation ---- */
 header {
-    padding: 1.5rem 0 1rem;
-    border-bottom: 2px solid var(--color-accent);
-    margin-bottom: 1.5rem;
+    background: var(--color-surface);
+    border-bottom: 3px solid var(--color-accent);
+    padding: 1.25rem 2rem 1rem;
+    margin-bottom: 1.75rem;
+    box-shadow: var(--shadow);
 }
+header h1 { margin: 0 0 0.85rem; font-size: 1.55rem; }
+.brand { display: flex; align-items: baseline; gap: 0.6rem; }
+.brand .brand-sub { font-family: Georgia, serif; font-size: 0.95rem; color: var(--color-gold); font-style: italic; }
 
-h1 { margin: 0 0 0.75rem; font-size: 1.5rem; }
-
+nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 nav a, nav .button, nav button {
     display: inline-block;
-    margin-right: 0.75rem;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius);
     text-decoration: none;
     color: var(--color-accent);
-    border: 1px solid var(--color-accent);
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     font-size: 0.9rem;
     cursor: pointer;
+    transition: background 0.12s, color 0.12s;
 }
-
-nav a.button, nav button { background: var(--color-accent); color: white; }
+nav a:hover, nav button:hover { background: var(--color-bg); }
+nav a.button, nav button[type="submit"].primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+nav a.button:hover { background: var(--color-accent-dark); }
 .inline-form { display: inline; }
 
-.budget-form { display: flex; gap: 0.3rem; align-items: center; justify-content: flex-end; }
-.budget-form input[type="text"] {
-    width: 6rem;
-    padding: 0.15rem 0.3rem;
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
-    font-size: 0.85rem;
-}
-.budget-form button {
-    padding: 0.1rem 0.5rem;
-    border: 1px solid var(--color-accent);
-    border-radius: 3px;
-    background: white;
-    color: var(--color-accent);
-    cursor: pointer;
-}
-
-nav .status-filter {
-    display: inline-block;
-    position: relative;
-    vertical-align: top;
-}
-nav .status-filter summary {
-    display: inline-block;
-    margin-right: 0.75rem;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    color: var(--color-accent);
-    border: 1px solid var(--color-accent);
-    background: white;
-    font-size: 0.9rem;
-    cursor: pointer;
-    list-style: none;
-}
-nav .status-filter summary::-webkit-details-marker { display: none; }
-nav .status-filter form {
-    position: absolute;
-    top: calc(100% + 0.25rem);
-    left: 0;
-    z-index: 10;
-    background: white;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.75rem 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    white-space: nowrap;
-}
-nav .status-filter label {
-    display: block;
-    font-size: 0.9rem;
-    font-weight: normal;
-    padding: 0.2rem 0;
-    cursor: pointer;
-}
-nav .status-filter button {
-    margin-top: 0.5rem;
-}
-
+main, .content { padding: 0 2rem; max-width: 1500px; margin: 0 auto; }
 section { margin-bottom: 2rem; }
 
+/* ---- Tabellen ---- */
 table {
     border-collapse: collapse;
     width: 100%;
-    background: white;
+    background: var(--color-surface);
     font-size: 0.85rem;
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+    overflow: hidden;
 }
-
 th, td {
-    border: 1px solid var(--color-border);
-    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.45rem 0.7rem;
     text-align: right;
 }
-
-th:nth-child(1), th:nth-child(2), th:nth-child(3), th:nth-child(4),
-td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(4) {
-    text-align: left;
-}
-
+/* Textspalten linksbuendig; in der Uebersicht ist nur "Monat" Text,
+   Detailtabellen markieren ihre Textspalten via .text-col. */
+th.text-col, td.text-col { text-align: left; }
+tbody tr:nth-child(even) { background: var(--color-row-alt); }
 thead th {
     background: var(--color-accent);
-    color: white;
+    color: #fff;
+    font-family: Georgia, serif;
+    font-weight: 600;
+    vertical-align: bottom;
 }
-thead th small { font-weight: normal; opacity: 0.85; }
-
-tfoot td { font-weight: bold; background: #e8edf2; }
+thead th small { font-weight: normal; opacity: 0.8; font-size: 0.75rem; }
+tfoot td { font-weight: bold; background: #efe7d8; border-top: 2px solid var(--color-gold); }
 
 .positive { color: var(--color-positive); }
 .negative { color: var(--color-negative); }
 
-.status { padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; background: #eee; }
-.linked-heuristic { color: #b36b00; }
+/* ---- Status-Badges ---- */
+.status { padding: 0.12rem 0.45rem; border-radius: 10px; font-size: 0.72rem; background: #eee; white-space: nowrap; }
+.status-verrechnet { background: #e3efe6; color: var(--color-positive); }
+.status-beauftragt { background: #fdf2df; color: var(--color-gold); }
+.status-nur_angebot { background: #eee9df; color: var(--color-muted); }
+.status-storniert { background: #f6e2e4; color: var(--color-negative); }
+.linked-heuristic { color: var(--color-gold); }
 .linked-reference { color: var(--color-positive); }
-.linked-none { color: #999; }
+.linked-none { color: #b0a897; }
 
-.empty { color: #888; font-style: italic; }
+.empty { color: var(--color-muted); font-style: italic; }
 
-.notice {
-    background: #e8f3ea;
-    border: 1px solid var(--color-positive);
-    color: var(--color-positive);
-    padding: 0.5rem 0.8rem;
-    border-radius: 4px;
+/* ---- Aufklappbare Monate ---- */
+details.month { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); margin-bottom: 0.6rem; box-shadow: var(--shadow); }
+details.month > summary {
+    cursor: pointer; padding: 0.7rem 1rem; font-family: Georgia, serif; font-size: 1.05rem;
+    font-weight: 600; color: var(--color-accent-dark); list-style: none;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
 }
+details.month > summary::-webkit-details-marker { display: none; }
+details.month > summary::before { content: "▸"; color: var(--color-gold); margin-right: 0.4rem; transition: transform 0.15s; }
+details.month[open] > summary::before { transform: rotate(90deg); }
+details.month > summary .month-meta { font-family: -apple-system, sans-serif; font-size: 0.8rem; font-weight: normal; color: var(--color-muted); }
+details.month .month-body { padding: 0 0.75rem 0.9rem; }
 
+/* ---- Meldungen / Hinweise ---- */
+.notice { background: #e3efe6; border: 1px solid var(--color-positive); color: var(--color-positive); padding: 0.55rem 0.85rem; border-radius: var(--radius); }
+.hint { color: var(--color-muted); font-size: 0.85rem; }
+.hint code { background: #efe7d8; padding: 0.1rem 0.3rem; border-radius: 3px; }
 .status-ok { color: var(--color-positive); font-weight: bold; }
 .status-missing { color: var(--color-negative); font-weight: bold; }
 
-.hint { color: #666; font-size: 0.85rem; }
-.hint code { background: #eee; padding: 0.1rem 0.3rem; border-radius: 3px; }
-
-table.admin-form { border: none; margin-bottom: 1rem; }
-table.admin-form td { border: none; text-align: left; padding: 0.4rem 0.6rem 0.4rem 0; background: transparent; }
-table.admin-form input, table.admin-form select {
-    padding: 0.35rem 0.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    min-width: 260px;
+/* ---- Status-Filter Dropdown ---- */
+nav .status-filter { display: inline-block; position: relative; }
+nav .status-filter summary {
+    display: inline-block; padding: 0.4rem 0.85rem; border-radius: var(--radius);
+    color: var(--color-accent); border: 1px solid var(--color-border); background: var(--color-surface);
+    font-size: 0.9rem; cursor: pointer; list-style: none;
 }
-.source-tag { margin-left: 0.6rem; font-size: 0.75rem; color: #888; }
+nav .status-filter summary::-webkit-details-marker { display: none; }
+nav .status-filter form {
+    position: absolute; top: calc(100% + 0.25rem); left: 0; z-index: 10; background: var(--color-surface);
+    border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.75rem 1rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15); white-space: nowrap;
+}
+nav .status-filter label { display: block; font-size: 0.9rem; font-weight: normal; padding: 0.2rem 0; cursor: pointer; }
+nav .status-filter button { margin-top: 0.5rem; }
+
+/* ---- Budget-Inline-Formular ---- */
+.budget-form { display: flex; gap: 0.3rem; align-items: center; justify-content: flex-end; }
+.budget-form input[type="text"] { width: 6rem; padding: 0.15rem 0.3rem; border: 1px solid var(--color-border); border-radius: 3px; font-size: 0.85rem; text-align: right; }
+.budget-form button { padding: 0.1rem 0.5rem; border: 1px solid var(--color-accent); border-radius: 3px; background: var(--color-surface); color: var(--color-accent); cursor: pointer; }
+
+/* ---- Formulare (Admin/Login) ---- */
+table.admin-form { border: none; box-shadow: none; background: transparent; margin-bottom: 1rem; }
+table.admin-form td { border: none; text-align: left; padding: 0.4rem 0.6rem 0.4rem 0; background: transparent; }
+table.admin-form input, table.admin-form select { padding: 0.4rem 0.55rem; border: 1px solid var(--color-border); border-radius: var(--radius); min-width: 260px; background: var(--color-surface); }
+.source-tag { margin-left: 0.6rem; font-size: 0.75rem; color: var(--color-muted); }
+button.primary, .content button[type="submit"] { background: var(--color-accent); color: #fff; border: 1px solid var(--color-accent); padding: 0.45rem 1rem; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem; }
+button.primary:hover { background: var(--color-accent-dark); }
+
+/* ---- Login-Seite ---- */
+.login-wrap { max-width: 360px; margin: 4rem auto; background: var(--color-surface); padding: 2rem; border-radius: var(--radius); box-shadow: var(--shadow); border-top: 4px solid var(--color-accent); }
+.login-wrap h1 { margin-top: 0; font-size: 1.4rem; }
+.login-wrap label { display: block; margin: 0.8rem 0 0.25rem; font-size: 0.9rem; }
+.login-wrap input { width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius); }
+.login-wrap button { width: 100%; margin-top: 1.2rem; }
+.login-error { color: var(--color-negative); font-size: 0.9rem; margin-top: 0.5rem; }
+
+/* ---- Dokumentation ---- */
+.doc { max-width: 900px; }
+.doc h2 { border-bottom: 2px solid var(--color-gold); padding-bottom: 0.3rem; margin-top: 2rem; }
+.doc h3 { margin-top: 1.5rem; }
+.doc table { font-size: 0.9rem; margin: 1rem 0; }
+.doc th, .doc td { text-align: left; }
+.doc code { background: #efe7d8; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.85em; }
+.doc .callout { background: var(--color-row-alt); border-left: 4px solid var(--color-gold); padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 0 var(--radius) var(--radius) 0; }
+
+/* ---- KPI-Karten (Auswertung) ---- */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.kpi { background: var(--color-surface); border-radius: var(--radius); padding: 1rem 1.2rem; box-shadow: var(--shadow); border-top: 3px solid var(--color-gold); }
+.kpi .kpi-label { font-size: 0.8rem; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.kpi .kpi-value { font-family: Georgia, serif; font-size: 1.6rem; color: var(--color-accent-dark); margin-top: 0.2rem; }
+.kpi .kpi-sub { font-size: 0.8rem; color: var(--color-muted); margin-top: 0.2rem; }
+.chart-card { background: var(--color-surface); border-radius: var(--radius); padding: 1.2rem 1.4rem; box-shadow: var(--shadow); margin-bottom: 2rem; }
+.chart-card h2 { margin-top: 0; }
+.chart-legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.6rem; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }

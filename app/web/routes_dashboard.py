@@ -67,6 +67,11 @@ def dashboard(
     )
 
 
+@router.get("/hilfe")
+def hilfe(request: Request):
+    return templates.TemplateResponse("hilfe.html", {"request": request})
+
+
 @router.post("/budget/save")
 def save_budget(
     year: int = Form(...),

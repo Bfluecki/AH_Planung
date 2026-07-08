@@ -2,20 +2,24 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Aarbergerhus – Umsatzplanung {{ year }}</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <header>
-        <h1>Aarbergerhus – Umsatzplanung {{ year }}</h1>
+        <div class="brand">
+            <h1>Aarbergerhus</h1>
+            <span class="brand-sub">Umsatzplanung {{ year }}</span>
+        </div>
         <nav>
             <a href="/?year={{ year - 1 }}">&larr; {{ year - 1 }}</a>
             <a href="/?year={{ year + 1 }}">{{ year + 1 }} &rarr;</a>
+            <a href="/auswertung?year={{ year }}">Auswertung</a>
             <a href="/export/{{ year }}.xlsx" class="button">Excel-Export</a>
             <form action="/sync/run" method="post" class="inline-form">
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
-            <a href="/admin">Admin</a>
             <details class="status-filter">
                 <summary>Status-Filter ({{ selected_statuses|length }})</summary>
                 <form action="/" method="get">
@@ -29,15 +33,19 @@
                     <button type="submit">Anwenden</button>
                 </form>
             </details>
+            <a href="/hilfe">Hilfe</a>
+            <a href="/admin">Admin</a>
+            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
         </nav>
     </header>
 
+    <div class="content">
     <section>
         <h2>Jahresübersicht</h2>
         <table class="overview">
             <thead>
                 <tr>
-                    <th>Monat</th>
+                    <th class="text-col">Monat</th>
                     <th>Tage</th>
                     <th>Übernachtung Soll<br><small>(bestellt)</small></th>
                     <th>Übernachtung Ist<br><small>(tatsächlich)</small></th>
@@ -51,7 +59,7 @@
             <tbody>
                 {% for m in year_summary.months %}
                 <tr>
-                    <td><a href="#monat-{{ m.month }}">{{ month_names[m.month - 1] }}</a></td>
+                    <td class="text-col"><a href="#monat-{{ m.month }}">{{ month_names[m.month - 1] }}</a></td>
                     <td>{{ m.days|swissnum(1) }}</td>
                     <td>{{ m.pax_nights_soll|swissnum(1) }}</td>
                     <td>{{ m.pax_nights_ist|swissnum(1) }}</td>
@@ -75,7 +83,7 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td>Jahr total</td>
+                    <td class="text-col">Jahr total</td>
                     <td></td>
                     <td>{{ year_summary.pax_nights_soll|swissnum(1) }}</td>
                     <td>{{ year_summary.pax_nights_ist|swissnum(1) }}</td>
@@ -89,55 +97,67 @@
         </table>
     </section>
 
-    {% for month in range(1, 13) %}
-    <section id="monat-{{ month }}">
-        <h2>{{ month_names[month - 1] }}</h2>
+    <section>
+        <h2>Detailplanung pro Monat</h2>
+        {% for month in range(1, 13) %}
         {% set rows = rows_by_month.get(month, []) %}
-        {% if rows %}
-        <table class="detail">
-            <thead>
-                <tr>
-                    <th>Kunde</th>
-                    <th>Anlass</th>
-                    <th>Zeitraum</th>
-                    <th>Status</th>
-                    <th>PAX Soll</th>
-                    <th>PAX Ist</th>
-                    <th>PAX Diff</th>
-                    <th>Tage</th>
-                    <th>Nächte</th>
-                    <th>PAX-Nächte</th>
-                    <th>Umsatz Soll</th>
-                    <th>Umsatz Ist</th>
-                    <th>Umsatz Diff</th>
-                    <th>Verkettung</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in rows %}
-                <tr>
-                    <td>{{ row.kunde }}</td>
-                    <td>{{ row.anlass }}</td>
-                    <td>{{ row.zeitraum }}</td>
-                    <td><span class="status status-{{ row.status }}">{{ row.status }}</span></td>
-                    <td>{{ row.pax_soll if row.pax_soll is not none else "" }}</td>
-                    <td>{{ row.pax_ist if row.pax_ist is not none else "" }}</td>
-                    <td>{{ row.pax_diff if row.pax_diff is not none else "" }}</td>
-                    <td>{{ row.tage|swissnum(1) }}</td>
-                    <td>{{ row.naechte|swissnum(1) }}</td>
-                    <td>{{ row.pax_naechte|swissnum(1) }}</td>
-                    <td>{{ row.umsatz_soll|swissnum }}</td>
-                    <td>{{ row.umsatz_ist|swissnum }}</td>
-                    <td class="{{ 'negative' if row.umsatz_diff < 0 else 'positive' }}">{{ row.umsatz_diff|swissnum }}</td>
-                    <td><span class="linked-{{ row.linked_by }}">{{ row.linked_by }}</span></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="empty">Keine Buchungen (mit aktuellem Status-Filter).</p>
-        {% endif %}
+        <details class="month" id="monat-{{ month }}" {{ "open" if rows else "" }}>
+            <summary>
+                <span>{{ month_names[month - 1] }}</span>
+                <span class="month-meta">
+                    {{ rows|length }} Buchung(en) ·
+                    Umsatz Ist {{ (rows|sum(attribute='umsatz_ist'))|swissnum }}
+                </span>
+            </summary>
+            <div class="month-body">
+            {% if rows %}
+            <table class="detail">
+                <thead>
+                    <tr>
+                        <th class="text-col">Kunde</th>
+                        <th class="text-col">Anlass</th>
+                        <th class="text-col">Zeitraum</th>
+                        <th class="text-col">Status</th>
+                        <th>PAX Soll</th>
+                        <th>PAX Ist</th>
+                        <th>PAX Diff</th>
+                        <th>Tage</th>
+                        <th>Nächte</th>
+                        <th>PAX-Nächte</th>
+                        <th>Umsatz Soll</th>
+                        <th>Umsatz Ist</th>
+                        <th>Umsatz Diff</th>
+                        <th class="text-col">Verkettung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="text-col">{{ row.kunde }}</td>
+                        <td class="text-col">{{ row.anlass }}</td>
+                        <td class="text-col">{{ row.zeitraum }}</td>
+                        <td class="text-col"><span class="status status-{{ row.status }}">{{ row.status }}</span></td>
+                        <td>{{ row.pax_soll if row.pax_soll is not none else "" }}</td>
+                        <td>{{ row.pax_ist if row.pax_ist is not none else "" }}</td>
+                        <td>{{ row.pax_diff if row.pax_diff is not none else "" }}</td>
+                        <td>{{ row.tage|swissnum(1) }}</td>
+                        <td>{{ row.naechte|swissnum(1) }}</td>
+                        <td>{{ row.pax_naechte|swissnum(1) }}</td>
+                        <td>{{ row.umsatz_soll|swissnum }}</td>
+                        <td>{{ row.umsatz_ist|swissnum }}</td>
+                        <td class="{{ 'negative' if row.umsatz_diff < 0 else 'positive' }}">{{ row.umsatz_diff|swissnum }}</td>
+                        <td class="text-col"><span class="linked-{{ row.linked_by }}">{{ row.linked_by }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty">Keine Buchungen (mit aktuellem Status-Filter).</p>
+            {% endif %}
+            </div>
+        </details>
+        {% endfor %}
     </section>
-    {% endfor %}
+    </div>
 </body>
 </html>
