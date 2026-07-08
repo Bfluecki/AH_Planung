@@ -184,3 +184,35 @@ def test_credit_voucher_net_returns_none_without_vouchers():
                    raw={"total_gross": "540.50", "total_net": "500.00", "total_credit_vouchers": "0.000000"})
     assert _credit_voucher_net(inv) is None
     assert _credit_voucher_net(Invoice(id=3, document_nr="RE-003", total=Decimal("1"), raw={})) is None
+
+
+def test_rebuild_direct_cancelled_and_draft_invoices(db_session):
+    import datetime as dt
+
+    from app.models import Booking, Contact, Invoice
+    from app.sync.service import rebuild_bookings
+
+    db_session.add(Contact(id=1, contact_nr="K-1", name="Kunde A"))
+    # Direktrechnung ohne Auftrag, bezahlt (Status 9) -> eigene Buchung "verrechnet"
+    db_session.add(Invoice(id=1, document_nr="RE-100", contact_id=1,
+                            title="Miete 05. September 2026", invoice_date=dt.date(2026, 9, 1),
+                            total=Decimal("500.00"), raw={"kb_item_status_id": 9}))
+    # Stornierte Rechnung (Status 19) -> Buchung "storniert", Ist = 0
+    db_session.add(Invoice(id=2, document_nr="RE-101", contact_id=1,
+                            title="Anlass 10. September 2026", invoice_date=dt.date(2026, 9, 2),
+                            total=Decimal("300.00"), raw={"kb_item_status_id": 19}))
+    # Entwurf (Status 7) ohne Auftrag -> gar keine Buchung
+    db_session.add(Invoice(id=3, document_nr="RE-102", contact_id=1,
+                            title="Anlass 20. September 2026", invoice_date=dt.date(2026, 9, 3),
+                            total=Decimal("999.00"), raw={"kb_item_status_id": 7}))
+    db_session.commit()
+
+    count = rebuild_bookings(db_session)
+    assert count == 2
+
+    bookings = {b.booking_key: b for b in db_session.query(Booking).all()}
+    assert set(bookings) == {"RE-100", "RE-101"}
+    assert bookings["RE-100"].status == "verrechnet"
+    assert bookings["RE-100"].umsatz_ist == Decimal("500.00")
+    assert bookings["RE-101"].status == "storniert"
+    assert bookings["RE-101"].umsatz_ist == Decimal("0.00")

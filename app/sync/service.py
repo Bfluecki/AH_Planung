@@ -352,6 +352,18 @@ def full_sync(db: Session, settings: Settings | None = None) -> dict:
 # ----------------------------------------------------------------------
 # Transformationspipeline: Verkettung + Abgrenzung + Soll/Ist (Konzept Abschnitt 6)
 # ----------------------------------------------------------------------
+# Bexio kb_invoice-Status (kb_item_status_id), Bedeutung gegen echte Daten
+# plausibilisiert: 2025 = 166x bezahlt + 6x storniert (abgeschlossenes Jahr),
+# 2026 = bezahlt/offen/Entwurf/Teilzahlung.
+INVOICE_STATUS_DRAFT = 7
+INVOICE_STATUS_CANCELLED = 19
+
+
+def _invoice_status_id(invoice: Invoice) -> int | None:
+    status_id = (invoice.raw or {}).get("kb_item_status_id")
+    return int(status_id) if status_id is not None else None
+
+
 def _credit_voucher_net(invoice: Invoice) -> Decimal | None:
     """Verrechnete Gutschriften einer Rechnung, umgerechnet auf netto.
 
@@ -437,12 +449,24 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
     booking_count = 0
 
     for chain in chains:
-        seen_keys.add(chain.booking_key)
         quote_row = quotes_by_id.get(chain.quote.id) if chain.quote else None
         order_row = orders_by_id.get(chain.order.id) if chain.order else None
         invoice_row = invoices_by_id.get(chain.invoice.id) if chain.invoice else None
         credit_note_row = credit_notes_by_id.get(chain.credit_note.id) if chain.credit_note else None
 
+        invoice_is_cancelled = False
+        if invoice_row is not None:
+            invoice_status = _invoice_status_id(invoice_row)
+            if invoice_status == INVOICE_STATUS_DRAFT:
+                # Entwurf: noch nicht verrechnet - nicht als Ist zaehlen. Haengt kein
+                # Auftrag/Angebot dran, gibt es (noch) keine Buchung dafuer.
+                invoice_row = None
+                if order_row is None and quote_row is None:
+                    continue
+            elif invoice_status == INVOICE_STATUS_CANCELLED:
+                invoice_is_cancelled = True
+
+        seen_keys.add(chain.booking_key)
         anchor_doc = order_row or invoice_row or quote_row
         title = anchor_doc.title if anchor_doc else ""
         doc_date = (order_row.order_date if order_row else None) or (
@@ -470,7 +494,11 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
         )
 
         credit_note_total = credit_note_row.total if credit_note_row else None
-        if credit_note_total is None and invoice_row is not None:
+        if invoice_is_cancelled and invoice_row is not None:
+            # Stornierte Rechnung (Status 19): Ist-Umsatz vollstaendig neutralisieren,
+            # compute_booking_metrics setzt den Buchungsstatus dann auf "storniert".
+            credit_note_total = invoice_row.total
+        elif credit_note_total is None and invoice_row is not None:
             # Bexio liefert kb_credit_voucher nicht per API (404), aber jede Rechnung
             # traegt "total_credit_vouchers" - darueber koennen verrechnete
             # Gutschriften trotzdem vom Ist-Umsatz abgezogen werden (verifiziert

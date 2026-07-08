@@ -77,3 +77,43 @@ def test_order_is_primary_key_even_with_multiple_bookings_same_contact():
     chains = build_booking_chains([], orders, [], [])
     keys = {c.booking_key for c in chains}
     assert keys == {"AU-00001", "AU-00002"}
+
+
+def test_direct_invoice_without_order_becomes_own_booking():
+    # Direktrechnung ohne Offerte/Auftrag (real: Miete, Kiosk, Kleinanlaesse) -
+    # muss als eigenstaendige Buchung erscheinen, sonst fehlt ihr Umsatz komplett.
+    invoices = [
+        InvoiceRef(id=21, document_nr="RE-00137", contact_id=200, title="Miete September 2026")
+    ]
+    chains = build_booking_chains([], [], invoices, [])
+
+    assert len(chains) == 1
+    assert chains[0].booking_key == "RE-00137"
+    assert chains[0].invoice.id == 21
+    assert chains[0].order is None
+    assert chains[0].linked_by == LINKED_BY_NONE
+
+
+def test_direct_invoice_keeps_its_credit_note():
+    invoices = [
+        InvoiceRef(id=21, document_nr="RE-00137", contact_id=200, title="Anlass April 2026")
+    ]
+    credit_notes = [
+        CreditNoteRef(id=30, document_nr="GS-00005", contact_id=200, title="Storno",
+                      reference_invoice_bexio_id=21)
+    ]
+    chains = build_booking_chains([], [], invoices, credit_notes)
+
+    assert chains[0].credit_note.id == 30
+
+
+def test_invoice_matched_to_order_not_duplicated_as_direct_booking():
+    orders = [OrderRef(id=10, document_nr="AU-00068", contact_id=200, title="Vereinsanlass Sommer 2026")]
+    invoices = [
+        InvoiceRef(id=21, document_nr="RE-00137", contact_id=200, title="Vereinsanlass Sommer 2026")
+    ]
+    chains = build_booking_chains([], orders, invoices, [])
+
+    assert len(chains) == 1  # nur die Auftrags-Buchung, keine zweite Direkt-Buchung
+    assert chains[0].booking_key == "AU-00068"
+    assert chains[0].invoice.id == 21

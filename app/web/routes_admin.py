@@ -202,14 +202,25 @@ def admin_debug_revenue_reconciliation(db: Session = Depends(get_db)) -> dict:
         year = inv.invoice_date.year if inv.invoice_date else 0
         group = by_invoice_year.setdefault(
             year,
-            {"invoice_count": 0, "total_net": Decimal("0"), "total_gross": Decimal("0"), "status_ids": {}},
+            {
+                "invoice_count": 0,
+                "total_net": Decimal("0"),
+                "total_gross": Decimal("0"),
+                "total_net_effektiv": Decimal("0"),
+                "status_ids": {},
+            },
         )
         raw = inv.raw or {}
+        net = _raw_decimal(raw.get("total_net"), inv.total or Decimal("0"))
         group["invoice_count"] += 1
-        group["total_net"] += _raw_decimal(raw.get("total_net"), inv.total or Decimal("0"))
+        group["total_net"] += net
         group["total_gross"] += _raw_decimal(raw.get("total_gross"), inv.total or Decimal("0"))
-        status_id = str(raw.get("kb_item_status_id"))
-        group["status_ids"][status_id] = group["status_ids"].get(status_id, 0) + 1
+        status_id = raw.get("kb_item_status_id")
+        # Effektiv = ohne Entwuerfe (7) und Stornos (19) - vergleichbar mit dem, was
+        # in Bexio-Auswertungen als verrechneter Umsatz erscheint.
+        if status_id not in (7, 19):
+            group["total_net_effektiv"] += net
+        group["status_ids"][str(status_id)] = group["status_ids"].get(str(status_id), 0) + 1
 
     allocations = db.query(MonthlyAllocation).all()
     by_service_year: dict[int, dict] = {}
@@ -230,6 +241,7 @@ def admin_debug_revenue_reconciliation(db: Session = Depends(get_db)) -> dict:
                 "invoice_count": g["invoice_count"],
                 "total_net": str(g["total_net"]),
                 "total_gross": str(g["total_gross"]),
+                "total_net_effektiv": str(g["total_net_effektiv"]),
                 "status_ids": g["status_ids"],
             }
             for year, g in sorted(by_invoice_year.items())

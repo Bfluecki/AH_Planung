@@ -196,4 +196,27 @@ def build_booking_chains(
             )
         )
 
+    # Direktrechnungen: Rechnungen ohne (gefundenen) Auftrag werden eigenstaendige
+    # Buchungen unter ihrer Rechnungsnummer - sonst fehlt deren Umsatz komplett in
+    # der Planung (real: Miete, Kiosk, Kleinanlaesse ohne vorgaengige Offerte;
+    # beim ersten Live-Abgleich waren so ~44% des Rechnungsumsatzes unsichtbar).
+    for invoice in invoices:
+        if invoice.id in matched_invoice_ids:
+            continue
+        credit_note = None
+        cn_candidates = credit_notes_by_invoice_ref.get(invoice.id, [])
+        if cn_candidates:
+            credit_note = cn_candidates[0]
+            matched_credit_note_ids.add(credit_note.id)
+        chains.append(
+            BookingChain(
+                booking_key=invoice.document_nr,
+                quote=None,
+                order=None,
+                invoice=invoice,
+                credit_note=credit_note,
+                linked_by=LINKED_BY_NONE,
+            )
+        )
+
     return chains
