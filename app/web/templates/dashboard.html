@@ -10,7 +10,8 @@
     <header>
         <div class="brand">
             <h1>Aarbergerhus</h1>
-            <span class="brand-sub">Umsatzplanung {{ year }}</span>
+            <span class="brand-sub">Umsatzplanung</span>
+            <span class="year-badge">{{ year }}</span>
         </div>
         <nav>
             <a href="/?year={{ year - 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">&larr; {{ year - 1 }}</a>

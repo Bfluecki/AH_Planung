@@ -46,8 +46,19 @@ header {
     box-shadow: var(--shadow);
 }
 header h1 { margin: 0 0 0.85rem; font-size: 1.55rem; }
-.brand { display: flex; align-items: baseline; gap: 0.6rem; }
-.brand .brand-sub { font-family: Georgia, serif; font-size: 0.95rem; color: var(--color-gold); font-style: italic; }
+.brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.55rem; }
+.brand .brand-sub { font-family: Georgia, serif; font-size: 1.15rem; font-weight: 600; color: var(--color-gold); }
+/* Jahr klar sichtbar hervorheben, damit erkennbar ist, welches Planjahr aktiv ist. */
+.brand .year-badge {
+    font-family: Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--color-accent);
+    padding: 0.1rem 0.7rem;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+}
 
 nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 nav a, nav .button, nav button {
