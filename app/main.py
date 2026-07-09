@@ -5,8 +5,11 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exception_handlers import http_exception_handler as default_http_exception_handler
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes_bexio import router as bexio_router
@@ -46,6 +49,26 @@ app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, max_age=60
 
 static_dir = Path(__file__).parent / "web" / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+_templates = Jinja2Templates(directory=str(Path(__file__).parent / "web" / "templates"))
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Zugriffsverweigerungen (403, z.B. Nicht-Admin auf Admin-Seite) als elegante
+    HTML-Seite statt als roher JSON-Fehler ausgeben. Alles andere (inkl. der
+    303-Weiterleitungen auf /login bzw. /passwort) bleibt beim Standardverhalten."""
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
+        return _templates.TemplateResponse(
+            "fehler.html",
+            {
+                "request": request,
+                "titel": "Kein Zugriff",
+                "nachricht": exc.detail or "Diese Seite ist nur für Administratoren.",
+            },
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+    return await default_http_exception_handler(request, exc)
 
 app.include_router(auth_router)
 app.include_router(dashboard_router)

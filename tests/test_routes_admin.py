@@ -191,12 +191,18 @@ def test_normal_user_cannot_reach_admin(client):
     test_client, TestSession = client
     from app.auth import create_user
     db = TestSession()
-    create_user(db, "normalo", "pw12345", role="user")
+    create_user(db, "normalo", "pw123456", role="stiftungsrat")
     db.close()
     test_client.get("/logout")
-    test_client.post("/login", data={"username": "normalo", "password": "pw12345"})
+    test_client.post("/login", data={"username": "normalo", "password": "pw123456"})
     resp = test_client.get("/admin", follow_redirects=False)
     assert resp.status_code == 403
+    # Elegante HTML-Fehlerseite statt rohem JSON.
+    assert "text/html" in resp.headers["content-type"]
+    assert "Kein Zugriff" in resp.text
+    assert '"detail"' not in resp.text
+    # Und der Admin-Link erscheint fuer Nicht-Admins gar nicht erst im Dashboard.
+    assert 'href="/admin"' not in test_client.get("/").text
 
 
 def test_audit_log_records_login_and_user_create(client):

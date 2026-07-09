@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
 from app.audit import log_action
-from app.auth import User, require_login
+from app.auth import ROLE_ADMIN, User, require_login
 from app.budget import save_budget_override
 from app.config import get_settings
 from app.db import get_db
@@ -72,6 +72,7 @@ def dashboard(
             "selected_statuses": selected_statuses,
             "search": search,
             "current_user": user.username,
+            "is_admin": user.role == ROLE_ADMIN,
         },
     )
 
