@@ -20,10 +20,20 @@ def db_session():
     session.close()
 
 
-def _add_booking_with_allocation(db, booking_key: str, status: str, umsatz: Decimal, month: int = 5):
+def _add_booking_with_allocation(
+    db,
+    booking_key: str,
+    status: str,
+    umsatz: Decimal,
+    month: int = 5,
+    kunde: str = "",
+    anlass: str = "",
+):
     booking = Booking(
         booking_key=booking_key,
         status=status,
+        kunde=kunde,
+        anlass=anlass,
         service_start=dt.date(2026, month, 1),
         service_end=dt.date(2026, month, 2),
     )
@@ -62,3 +72,28 @@ def test_no_statuses_filter_returns_everything(db_session):
     mai = next(m for m in year_summary.months if m.month == 5)
     assert mai.umsatz_soll == Decimal("3000")
     assert len(rows_by_month[5]) == 2
+
+
+def test_search_filters_by_kunde_or_anlass_case_insensitive(db_session):
+    _add_booking_with_allocation(
+        db_session, "AU-001", "verrechnet", Decimal("1000"), kunde="Familie Müller", anlass="Hochzeit"
+    )
+    _add_booking_with_allocation(
+        db_session, "AU-002", "verrechnet", Decimal("2000"), kunde="Firma Rebbau AG", anlass="Seminar"
+    )
+
+    # Treffer im Kundennamen (Teilstring, andere Gross-/Kleinschreibung)
+    year_summary, rows_by_month = build_report(db_session, 2026, statuses=None, search="müller")
+    mai = next(m for m in year_summary.months if m.month == 5)
+    assert mai.umsatz_soll == Decimal("1000")
+    assert [r.booking_key for r in rows_by_month[5]] == ["AU-001"]
+
+    # Treffer im Anlass
+    _, rows_by_month = build_report(db_session, 2026, statuses=None, search="seminar")
+    assert [r.booking_key for r in rows_by_month[5]] == ["AU-002"]
+
+    # Kein Treffer -> Jahresuebersicht und Detailzeilen leer
+    year_summary, rows_by_month = build_report(db_session, 2026, statuses=None, search="xyz")
+    mai = next(m for m in year_summary.months if m.month == 5)
+    assert mai.umsatz_soll == Decimal("0")
+    assert rows_by_month[5] == []

@@ -10,10 +10,14 @@ from sqlalchemy.orm import Session
 
 from app import auth
 from app.audit import log_action
+from app.auth import User, require_login
 from app.db import get_db
 
 router = APIRouter(tags=["auth"])
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+# Mindestlaenge fuer selbst vergebene Passwoerter.
+_MIN_PASSWORD_LEN = 8
 
 
 @router.get("/login")
@@ -41,6 +45,46 @@ def login_submit(
     auth.login_session(request, user)
     log_action(db, user.username, "login")
     return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/passwort")
+def password_form(request: Request, user: User = Depends(require_login)):
+    return templates.TemplateResponse(
+        "passwort.html",
+        {"request": request, "current_user": user.username, "error": None, "success": False},
+    )
+
+
+@router.post("/passwort")
+def password_change(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_login),
+):
+    def render(error: str | None = None, success: bool = False):
+        return templates.TemplateResponse(
+            "passwort.html",
+            {"request": request, "current_user": user.username, "error": error, "success": success},
+            status_code=200 if success else 400,
+        )
+
+    if not auth.verify_password(current_password, user.password_hash):
+        log_action(db, user.username, "password_self_change_failed", "aktuelles Passwort falsch")
+        return render("Das aktuelle Passwort ist falsch.")
+    if len(new_password) < _MIN_PASSWORD_LEN:
+        return render(f"Das neue Passwort muss mindestens {_MIN_PASSWORD_LEN} Zeichen lang sein.")
+    if new_password != confirm_password:
+        return render("Die beiden neuen Passwörter stimmen nicht überein.")
+    if new_password == current_password:
+        return render("Das neue Passwort muss sich vom bisherigen unterscheiden.")
+
+    user.password_hash = auth.hash_password(new_password)
+    db.commit()
+    log_action(db, user.username, "password_self_change")
+    return render(success=True)
 
 
 @router.get("/logout")

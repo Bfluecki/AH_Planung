@@ -9,6 +9,7 @@ import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
@@ -74,10 +75,12 @@ def build_report(
     year: int,
     settings: Settings | None = None,
     statuses: set[str] | None = None,
+    search: str | None = None,
 ) -> tuple[YearSummary, dict[int, list[ReportRow]]]:
     """statuses filtert nach Booking.status (z.B. nur "verrechnet"); None/leer = alle.
-    Wirkt auf Jahresuebersicht UND Detailzeilen gleichermassen - beide werden aus
-    derselben gefilterten Abfrage gebaut, es gibt keine separate "Gesamtbild"-Sicht."""
+    search filtert zusaetzlich nach Kunde oder Anlass (Teilstring, case-insensitiv).
+    Beide Filter wirken auf Jahresuebersicht UND Detailzeilen gleichermassen - beide
+    werden aus derselben gefilterten Abfrage gebaut."""
     settings = settings or get_settings()
     effective = get_effective_config(db, settings)
 
@@ -88,6 +91,9 @@ def build_report(
     )
     if statuses:
         query = query.filter(Booking.status.in_(statuses))
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(Booking.kunde.ilike(term), Booking.anlass.ilike(term)))
     allocations = query.all()
 
     figures = [

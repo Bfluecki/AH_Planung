@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Passwort ändern – Aarbergerhus</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-wrap">
+        <h1>Passwort ändern</h1>
+        <p class="brand-sub" style="color:var(--color-gold);font-style:italic;">{{ current_user }}</p>
+        {% if success %}
+        <p class="login-success">Passwort erfolgreich geändert.</p>
+        <a href="/" class="button" style="display:block;text-align:center;margin-top:1rem;">Zurück zum Dashboard</a>
+        {% else %}
+        <form action="/passwort" method="post">
+            <label for="current_password">Aktuelles Passwort</label>
+            <input type="password" id="current_password" name="current_password" autocomplete="current-password" autofocus>
+            <label for="new_password">Neues Passwort</label>
+            <input type="password" id="new_password" name="new_password" autocomplete="new-password">
+            <label for="confirm_password">Neues Passwort bestätigen</label>
+            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password">
+            {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
+            <button type="submit" class="primary">Passwort ändern</button>
+        </form>
+        <a href="/" style="display:block;text-align:center;margin-top:1rem;font-size:0.9rem;">Abbrechen</a>
+        {% endif %}
+    </div>
+</body>
+</html>

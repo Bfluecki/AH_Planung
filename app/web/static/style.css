@@ -67,6 +67,22 @@ nav a.button, nav button[type="submit"].primary { background: var(--color-accent
 nav a.button:hover { background: var(--color-accent-dark); }
 .inline-form { display: inline; }
 
+.search-form { display: inline-flex; align-items: center; gap: 0.35rem; }
+.search-form input[type="search"] {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    font-size: 0.9rem;
+    min-width: 12rem;
+}
+.search-form .clear-search {
+    padding: 0.4rem 0.6rem;
+    color: var(--color-muted);
+    line-height: 1;
+}
+.search-form .clear-search:hover { color: var(--color-accent); }
+
 main, .content { padding: 0 2rem; max-width: 1500px; margin: 0 auto; }
 section { margin-bottom: 2rem; }
 
@@ -170,6 +186,7 @@ button.primary:hover { background: var(--color-accent-dark); }
 .login-wrap input { width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius); }
 .login-wrap button { width: 100%; margin-top: 1.2rem; }
 .login-error { color: var(--color-negative); font-size: 0.9rem; margin-top: 0.5rem; }
+.login-success { color: var(--color-positive); font-size: 0.95rem; margin-top: 0.5rem; }
 
 /* ---- Dokumentation ---- */
 .doc { max-width: 900px; }

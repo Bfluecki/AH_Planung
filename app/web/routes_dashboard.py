@@ -45,6 +45,7 @@ def dashboard(
     request: Request,
     year: int | None = None,
     status: list[str] = Query(default=DEFAULT_STATUSES),
+    q: str = "",
     db: Session = Depends(get_db),
     user: User = Depends(require_login),
 ):
@@ -52,9 +53,12 @@ def dashboard(
     effective = get_effective_config(db, settings)
     year = year or effective.current_planning_year
     selected_statuses = set(status) or set(DEFAULT_STATUSES)
+    search = q.strip()
 
-    # Status-Filter wirkt auf Jahresuebersicht UND Detailzeilen gleichermassen.
-    year_summary, rows_by_month = build_report(db, year, settings, statuses=selected_statuses)
+    # Status- und Suchfilter wirken auf Jahresuebersicht UND Detailzeilen gleichermassen.
+    year_summary, rows_by_month = build_report(
+        db, year, settings, statuses=selected_statuses, search=search or None
+    )
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -66,6 +70,7 @@ def dashboard(
             "month_names": MONTH_NAMES_DE,
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,
+            "search": search,
             "current_user": user.username,
         },
     )
@@ -82,6 +87,7 @@ def save_budget(
     month: int = Form(...),
     budget_chf: str = Form(...),
     status: list[str] = Form(default=DEFAULT_STATUSES),
+    q: str = Form(default=""),
     db: Session = Depends(get_db),
     user: User = Depends(require_login),
 ):
@@ -92,5 +98,7 @@ def save_budget(
     if value is not None:
         save_budget_override(db, year, month, value)
         log_action(db, user.username, "budget_change", f"{year}-{month:02d} = {value}")
-    query = urlencode([("year", year)] + [("status", s) for s in status])
-    return RedirectResponse(url=f"/?{query}", status_code=303)
+    params = [("year", year)] + [("status", s) for s in status]
+    if q.strip():
+        params.append(("q", q.strip()))
+    return RedirectResponse(url=f"/?{urlencode(params)}", status_code=303)

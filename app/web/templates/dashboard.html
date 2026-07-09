@@ -13,10 +13,17 @@
             <span class="brand-sub">Umsatzplanung {{ year }}</span>
         </div>
         <nav>
-            <a href="/?year={{ year - 1 }}">&larr; {{ year - 1 }}</a>
-            <a href="/?year={{ year + 1 }}">{{ year + 1 }} &rarr;</a>
+            <a href="/?year={{ year - 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">&larr; {{ year - 1 }}</a>
+            <a href="/?year={{ year + 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">{{ year + 1 }} &rarr;</a>
             <a href="/auswertung?year={{ year }}">Auswertung</a>
             <a href="/export/{{ year }}.xlsx" class="button">Excel-Export</a>
+            <form action="/" method="get" class="search-form">
+                <input type="hidden" name="year" value="{{ year }}">
+                {% for s in selected_statuses %}<input type="hidden" name="status" value="{{ s }}">{% endfor %}
+                <input type="search" name="q" value="{{ search }}" placeholder="Kunde oder Anlass suchen …">
+                <button type="submit">Suchen</button>
+                {% if search %}<a href="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}" class="clear-search">✕</a>{% endif %}
+            </form>
             <form action="/sync/run" method="post" class="inline-form">
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
@@ -24,6 +31,7 @@
                 <summary>Status-Filter ({{ selected_statuses|length }})</summary>
                 <form action="/" method="get">
                     <input type="hidden" name="year" value="{{ year }}">
+                    {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
                     {% for s in all_statuses %}
                     <label>
                         <input type="checkbox" name="status" value="{{ s }}" {{ "checked" if s in selected_statuses else "" }}>
@@ -35,6 +43,7 @@
             </details>
             <a href="/hilfe">Hilfe</a>
             <a href="/admin">Admin</a>
+            <a href="/passwort">Passwort</a>
             {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
         </nav>
     </header>
@@ -72,6 +81,7 @@
                             {% for s in selected_statuses %}
                             <input type="hidden" name="status" value="{{ s }}">
                             {% endfor %}
+                            {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
                             <input type="text" name="budget_chf" value="{{ m.budget|swissnum }}" size="10">
                             <button type="submit" title="Budget speichern">✓</button>
                         </form>
