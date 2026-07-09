@@ -248,15 +248,55 @@
             {% endif %}
         </section>
 
-        <section class="doc">
-            <h2>Geplante weitere Auswertungen</h2>
-            <p>Vorschlag für den weiteren Ausbau der Performance-Analyse:</p>
-            <table>
-                <tr><th>Kennzahl / Grafik</th><th>Nutzen</th></tr>
-                <tr><td><strong>Kumulierte Zielerreichung</strong> (Jahresverlauf)</td><td>Liegt das Jahr per Stichtag vor oder hinter Budget? Frühwarnung.</td></tr>
+        <section class="chart-card">
+            <h2>Kumulierte Zielerreichung {{ year }}</h2>
+            <p class="hint">Aufsummierter Umsatz Ist gegen aufsummiertes Budget im Jahresverlauf –
+            liegt das Jahr per Stichtag vor oder hinter Budget? (Frühwarnung)</p>
+            {% if cumulative.stichtag_point %}
+            {% set sp = cumulative.stichtag_point %}
+            <div class="callout">
+                Per Ende <strong>{{ month_names[sp.month - 1] }}</strong>: kumulierter Umsatz Ist
+                <strong>{{ sp.cum_ist|swissnum }}</strong> von Budget {{ sp.cum_budget|swissnum }}
+                = {% if sp.cum_pct is not none %}{{ sp.cum_pct|swissnum(1) }}%{% else %}–{% endif %} –
+                {% if sp.cum_ist >= sp.cum_budget %}
+                <strong class="positive">vor Budget</strong>
+                {% else %}
+                <strong class="negative">hinter Budget</strong>
+                {% endif %}
+                (Abweichung <span class="{{ 'positive' if (sp.cum_ist - sp.cum_budget) >= 0 else 'negative' }}">{{ (sp.cum_ist - sp.cum_budget)|swissnum }}</span>).
+            </div>
+            {% endif %}
+            <svg viewBox="0 0 {{ cum_chart.width }} {{ cum_chart.height }}" width="100%" role="img" aria-label="Kumulierte Zielerreichung">
+                {% for g in cum_chart.gridlines %}
+                <line x1="{{ cum_chart.left_pad }}" y1="{{ g.y }}" x2="{{ cum_chart.right_x }}" y2="{{ g.y }}" stroke="#e0d8ca" stroke-width="1"/>
+                <text x="{{ cum_chart.left_pad - 6 }}" y="{{ g.y + 3 }}" text-anchor="end" font-size="10" fill="#6b6459">{{ g.label }}</text>
+                {% endfor %}
+                {% for xl in cum_chart.xlabels %}
+                <text x="{{ xl.x }}" y="{{ cum_chart.baseline_y + 15 }}" text-anchor="middle" font-size="10" fill="#6b6459">{{ xl.label }}</text>
+                {% endfor %}
+                {% for s in cum_chart.series %}
+                <polyline points="{{ s.points }}" fill="none" stroke="{{ s.color }}" stroke-width="2" stroke-linejoin="round"/>
+                {% endfor %}
+            </svg>
+            <div class="chart-legend">
+                {% for s in cum_chart.series %}
+                <span><span class="swatch" style="background: {{ s.color }}"></span>{{ s.year }}</span>
+                {% endfor %}
+            </div>
+            <table style="margin-top:1rem;">
+                <thead><tr><th class="text-col">Monat</th><th>Umsatz Ist</th><th>Kum. Ist</th><th>Kum. Budget</th><th>Kum. Zielerreichung</th></tr></thead>
+                <tbody>
+                    {% for p in cumulative.points %}
+                    <tr>
+                        <td class="text-col">{{ month_names[p.month - 1] }}</td>
+                        <td>{{ p.umsatz_ist|swissnum }}</td>
+                        <td>{{ p.cum_ist|swissnum }}</td>
+                        <td>{{ p.cum_budget|swissnum }}</td>
+                        <td class="{{ 'positive' if p.cum_ist >= p.cum_budget else 'negative' }}">{% if p.cum_pct is not none %}{{ p.cum_pct|swissnum(1) }}%{% else %}–{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
-            <div class="callout">Sag mir, wenn du diese Auswertung auch möchtest – ich baue sie
-            in derselben Systematik (aus denselben Bexio-Daten) dazu.</div>
         </section>
     </div>
 </body>

@@ -9,12 +9,13 @@ from app.db import Base
 from app.domain.analytics import (
     accuracy_over_time,
     average_stats,
+    cumulative_target,
     ertragsart_mix,
     monthly_occupancy,
     pipeline_value,
     top_customers,
 )
-from app.models import Booking, LineItem, MonthlyAllocation
+from app.models import Booking, LineItem, MonthlyAllocation, MonthlyBudget
 
 
 @pytest.fixture
@@ -131,6 +132,27 @@ def test_pipeline_value_sums_open_soll_by_status(db_session):
     assert pv.monthly_soll[2] == Decimal("1000")  # Maerz
     assert pv.monthly_soll[3] == Decimal("2000")  # April
     assert pv.monthly_soll[4] == Decimal("0")     # Mai (verrechnet, nicht Pipeline)
+
+
+def test_cumulative_target_tracks_ist_vs_budget(db_session):
+    # Budget 1000/Monat fuer Jan+Feb; Ist 1200 (Jan) und 500 (Feb).
+    db_session.add(MonthlyBudget(year=2025, month=1, budget_chf=Decimal("1000")))
+    db_session.add(MonthlyBudget(year=2025, month=2, budget_chf=Decimal("1000")))
+    a = _booking(db_session, "AU-1", "Verein A")
+    b = _booking(db_session, "AU-2", "Verein B")
+    db_session.add(MonthlyAllocation(booking_id=a.id, year=2025, month=1, umsatz_ist=Decimal("1200")))
+    db_session.add(MonthlyAllocation(booking_id=b.id, year=2025, month=2, umsatz_ist=Decimal("500")))
+    db_session.commit()
+
+    ct = cumulative_target(db_session, 2025)
+    jan, feb = ct.points[0], ct.points[1]
+    assert jan.cum_ist == Decimal("1200") and jan.cum_budget == Decimal("1000")
+    assert jan.cum_pct == Decimal("120.0")
+    assert feb.cum_ist == Decimal("1700") and feb.cum_budget == Decimal("2000")
+    assert feb.cum_pct == Decimal("85.0")
+    # Stichtag = letzter Monat mit Ist-Umsatz (Februar) -> hinter Budget.
+    assert ct.stichtag_month == 2
+    assert ct.stichtag_point.cum_ist < ct.stichtag_point.cum_budget
 
 
 def test_accuracy_over_time_lists_all_years(db_session):

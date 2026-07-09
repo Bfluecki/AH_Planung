@@ -16,6 +16,7 @@ from app.domain.analytics import (
     accuracy_over_time,
     average_stats,
     available_years,
+    cumulative_target,
     ertragsart_mix,
     monthly_occupancy,
     pipeline_value,
@@ -30,6 +31,10 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.filters["swissnum"] = swissnum
 
 MONTH_ABBR = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+_MONTH_NAMES_DE = [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+]
 
 # Farbpalette fuer die Jahreslinien (barrierearm, gut unterscheidbar).
 _LINE_COLORS = ["#7a2733", "#b08a4f", "#3f7a4f", "#4a6fa5", "#8a5a2b", "#6b6459"]
@@ -230,6 +235,13 @@ def auswertung(
         [(m + 1, pipeline.monthly_soll[m]) for m in range(12)], max_val=0.0
     )
 
+    # Kumulierte Zielerreichung: kumulierter Ist-Umsatz vs. kumuliertes Budget.
+    cumulative = cumulative_target(db, current, settings)
+    cum_chart = _build_line_chart([
+        ("Budget (kumuliert)", [p.cum_budget for p in cumulative.points]),
+        ("Umsatz Ist (kumuliert)", [p.cum_ist for p in cumulative.points]),
+    ])
+
     return templates.TemplateResponse(
         "auswertung.html",
         {
@@ -254,5 +266,8 @@ def auswertung(
             "acc_chart": acc_chart,
             "pipeline": pipeline,
             "pipeline_chart": pipeline_chart,
+            "cumulative": cumulative,
+            "cum_chart": cum_chart,
+            "month_names": _MONTH_NAMES_DE,
         },
     )

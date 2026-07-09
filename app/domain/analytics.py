@@ -258,6 +258,52 @@ def ertragsart_mix(db: Session, year: int) -> list[ErtragsartShare]:
     return shares
 
 
+# ------------------------------------------------------------------ Kumulierte Zielerreichung
+@dataclass
+class CumulativePoint:
+    month: int
+    umsatz_ist: Decimal        # Monatswert (nicht kumuliert)
+    cum_ist: Decimal           # kumuliert bis einschliesslich dieses Monats
+    cum_budget: Decimal
+    cum_pct: Decimal | None    # cum_ist / cum_budget * 100
+
+
+@dataclass
+class CumulativeTarget:
+    points: list[CumulativePoint]      # immer 12 Eintraege
+    stichtag_month: int | None         # letzter Monat mit Ist-Umsatz (Frühwarn-Stichtag)
+
+    @property
+    def stichtag_point(self) -> CumulativePoint | None:
+        if self.stichtag_month is None:
+            return None
+        return self.points[self.stichtag_month - 1]
+
+
+def cumulative_target(db: Session, year: int, settings: Settings | None = None) -> CumulativeTarget:
+    """Kumulierter Umsatz Ist vs. kumuliertes Budget im Jahresverlauf.
+
+    Beantwortet 'liegt das Jahr per Stichtag vor oder hinter Budget?' (Frühwarnung):
+    pro Monat die aufsummierten Ist-Umsätze und Budgets sowie deren Verhältnis. Der
+    Stichtag ist der letzte Monat mit tatsächlichem Ist-Umsatz."""
+    settings = settings or get_settings()
+    year_summary, _ = build_report(db, year, settings, statuses=None)
+
+    points: list[CumulativePoint] = []
+    cum_ist = Decimal("0")
+    cum_budget = Decimal("0")
+    stichtag_month: int | None = None
+    for m in year_summary.months:
+        cum_ist += m.umsatz_ist
+        cum_budget += m.budget
+        cum_pct = (cum_ist / cum_budget * 100).quantize(Decimal("0.1")) if cum_budget > 0 else None
+        points.append(CumulativePoint(m.month, m.umsatz_ist, cum_ist, cum_budget, cum_pct))
+        if m.umsatz_ist and m.umsatz_ist > 0:
+            stichtag_month = m.month
+
+    return CumulativeTarget(points=points, stichtag_month=stichtag_month)
+
+
 # ------------------------------------------------------------------ Soll-Ist-Trend
 @dataclass
 class AccuracyPoint:
