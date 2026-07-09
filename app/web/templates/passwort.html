@@ -14,8 +14,12 @@
         <p class="login-success">Passwort erfolgreich geändert.</p>
         <a href="/" class="button" style="display:block;text-align:center;margin-top:1rem;">Zurück zum Dashboard</a>
         {% else %}
+        {% if forced %}
+        <p class="notice" style="margin-bottom:1rem;">Willkommen! Bitte vergeben Sie zunächst ein eigenes Passwort.
+        Melden Sie sich dazu mit dem vom Administrator erhaltenen Initialpasswort an und wählen Sie ein neues.</p>
+        {% endif %}
         <form action="/passwort" method="post">
-            <label for="current_password">Aktuelles Passwort</label>
+            <label for="current_password">{{ "Initialpasswort" if forced else "Aktuelles Passwort" }}</label>
             <input type="password" id="current_password" name="current_password" autocomplete="current-password" autofocus>
             <label for="new_password">Neues Passwort</label>
             <input type="password" id="new_password" name="new_password" autocomplete="new-password">
@@ -24,7 +28,11 @@
             {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
             <button type="submit" class="primary">Passwort ändern</button>
         </form>
+        {% if forced %}
+        <a href="/logout" style="display:block;text-align:center;margin-top:1rem;font-size:0.9rem;">Abmelden</a>
+        {% else %}
         <a href="/" style="display:block;text-align:center;margin-top:1rem;font-size:0.9rem;">Abbrechen</a>
+        {% endif %}
         {% endif %}
     </div>
 </body>

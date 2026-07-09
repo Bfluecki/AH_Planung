@@ -122,3 +122,50 @@ def test_password_change_too_short(client):
     assert resp.status_code == 400
     assert "mindestens" in resp.text
     assert _current_hash(TestSession) == before
+
+
+def test_login_with_email_address(client):
+    test_client, TestSession = client
+    db = TestSession()
+    create_user(db, "anna@example.ch", "annapass1", role=ROLE_MITARBEITER, email="Anna@Example.ch")
+    db.close()
+    test_client.get("/logout")
+    # Anmeldung ueber die E-Mail-Adresse (Gross-/Kleinschreibung egal).
+    resp = test_client.post(
+        "/login", data={"username": "anna@example.ch", "password": "annapass1"}, follow_redirects=False
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/"
+
+
+def test_forced_password_change_redirects_until_changed(client):
+    test_client, TestSession = client
+    # Admin legt Benutzer mit Initialpasswort an (Zwangswechsel).
+    db = TestSession()
+    create_user(
+        db, "neu@example.ch", "initial01", role=ROLE_MITARBEITER,
+        email="neu@example.ch", must_change_password=True,
+    )
+    db.close()
+    test_client.get("/logout")
+    test_client.post("/login", data={"username": "neu@example.ch", "password": "initial01"})
+
+    # Solange der Wechsel offen ist, wird jede andere Seite auf /passwort umgeleitet.
+    resp = test_client.get("/", follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/passwort"
+    # Die Passwortseite selbst bleibt erreichbar und zeigt den Zwangs-Hinweis.
+    forced = test_client.get("/passwort")
+    assert forced.status_code == 200
+    assert "Initialpasswort" in forced.text
+
+    # Nach dem Wechsel ist die App normal nutzbar.
+    changed = test_client.post(
+        "/passwort",
+        data={"current_password": "initial01", "new_password": "meinpass99", "confirm_password": "meinpass99"},
+    )
+    assert changed.status_code == 200
+    assert test_client.get("/", follow_redirects=False).status_code == 200
+    db = TestSession()
+    assert db.query(User).filter(User.username == "neu@example.ch").one().must_change_password is False
+    db.close()

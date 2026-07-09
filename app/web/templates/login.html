@@ -11,8 +11,9 @@
         <h1>Aarbergerhus</h1>
         <p class="brand-sub" style="color:var(--color-gold);font-style:italic;">Umsatzplanung</p>
         <form action="/login" method="post">
-            <label for="username">Benutzername</label>
-            <input type="text" id="username" name="username" autofocus autocomplete="username">
+            <label for="username">E-Mail-Adresse</label>
+            <input type="text" id="username" name="username" autofocus autocomplete="username"
+                   placeholder="vorname.name@example.ch">
             <label for="password">Passwort</label>
             <input type="password" id="password" name="password" autocomplete="current-password">
             {% if error %}<p class="login-error">{{ error }}</p>{% endif %}

@@ -161,7 +161,10 @@
                             </select>
                         </form>
                     </td>
-                    <td class="text-col">{{ "aktiv" if u.is_active else "deaktiviert" }}</td>
+                    <td class="text-col">
+                        {{ "aktiv" if u.is_active else "deaktiviert" }}
+                        {% if u.must_change_password %}<br><span class="source-tag">Passwortwechsel offen</span>{% endif %}
+                    </td>
                     <td class="text-col">
                         {% if u.is_active %}
                         <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
@@ -186,6 +189,8 @@
         </table>
 
         <h3>Neuen Benutzer anlegen</h3>
+        <p class="hint">Die E-Mail-Adresse ist zugleich der Anmeldename. Der Benutzer meldet sich mit dem
+        hier vergebenen Initialpasswort an und muss bei der ersten Anmeldung ein eigenes Passwort setzen.</p>
         <form action="/admin/users/create" method="post">
             <table class="admin-form">
                 <tr>
@@ -197,15 +202,11 @@
                     <td><input type="text" id="new_last_name" name="new_last_name" autocomplete="off"></td>
                 </tr>
                 <tr>
-                    <td><label for="new_email">E-Mail</label></td>
-                    <td><input type="email" id="new_email" name="new_email" autocomplete="off"></td>
+                    <td><label for="new_email">E-Mail (Anmeldename)</label></td>
+                    <td><input type="email" id="new_email" name="new_email" autocomplete="off" required></td>
                 </tr>
                 <tr>
-                    <td><label for="new_username">Benutzername</label></td>
-                    <td><input type="text" id="new_username" name="new_username" autocomplete="off" required></td>
-                </tr>
-                <tr>
-                    <td><label for="new_password">Passwort</label></td>
+                    <td><label for="new_password">Initialpasswort</label></td>
                     <td><input type="password" id="new_password" name="new_password" autocomplete="new-password" required></td>
                 </tr>
                 <tr>

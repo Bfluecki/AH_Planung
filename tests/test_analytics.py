@@ -7,11 +7,14 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base
 from app.domain.analytics import (
+    accuracy_over_time,
     average_stats,
+    ertragsart_mix,
     monthly_occupancy,
+    pipeline_value,
     top_customers,
 )
-from app.models import Booking, MonthlyAllocation
+from app.models import Booking, LineItem, MonthlyAllocation
 
 
 @pytest.fixture
@@ -75,3 +78,74 @@ def test_average_stats(db_session):
     assert stats.booking_count == 2
     assert stats.avg_per_booking == Decimal("1500.00")   # 3000 / 2
     assert stats.avg_per_pax_night == Decimal("30.00")   # 3000 / 100
+
+
+def test_ertragsart_mix_splits_net_ist_by_line_item_proportions(db_session):
+    # Buchung mit Rechnung id=10: 3000 Umsatz Ist, Positionen 60% Uebernachtung / 40% Verpflegung.
+    b = _booking(db_session, "AU-1", "Verein A")
+    b.invoice_id = 10
+    db_session.add(MonthlyAllocation(booking_id=b.id, year=2025, month=5, umsatz_ist=Decimal("3000")))
+    db_session.add(LineItem(document_type="invoice", document_id=10, position_bexio_id=1,
+                            product_code="LH-UEB", total=Decimal("600")))
+    db_session.add(LineItem(document_type="invoice", document_id=10, position_bexio_id=2,
+                            product_code="AH-VLP", total=Decimal("400")))
+    db_session.commit()
+
+    mix = ertragsart_mix(db_session, 2025)
+    by_art = {s.ertragsart: s for s in mix}
+    # 3000 wird 60/40 aufgeteilt -> 1800 Uebernachtung, 1200 Verpflegung.
+    assert by_art["uebernachtung"].umsatz == Decimal("1800.00")
+    assert by_art["verpflegung"].umsatz == Decimal("1200.00")
+    assert by_art["uebernachtung"].pct == Decimal("60.0")
+    # Summe bleibt exakt der Netto-Ist-Umsatz.
+    assert sum(s.umsatz for s in mix) == Decimal("3000.00")
+
+
+def test_ertragsart_mix_without_line_items_falls_back_to_sonstiges(db_session):
+    b = _booking(db_session, "AU-1", "Verein A")  # keine invoice_id / keine Positionen
+    db_session.add(MonthlyAllocation(booking_id=b.id, year=2025, month=5, umsatz_ist=Decimal("500")))
+    db_session.commit()
+
+    mix = ertragsart_mix(db_session, 2025)
+    assert len(mix) == 1
+    assert mix[0].ertragsart == "sonstiges"
+    assert mix[0].umsatz == Decimal("500.00")
+    assert mix[0].pct == Decimal("100.0")
+
+
+def test_pipeline_value_sums_open_soll_by_status(db_session):
+    ang = _booking(db_session, "AN-1", "Verein A", status="nur_angebot")
+    auf = _booking(db_session, "AU-1", "Verein B", status="beauftragt")
+    ver = _booking(db_session, "AU-2", "Verein C", status="verrechnet")  # nicht Pipeline
+    db_session.add(MonthlyAllocation(booking_id=ang.id, year=2025, month=3, umsatz_soll=Decimal("1000")))
+    db_session.add(MonthlyAllocation(booking_id=auf.id, year=2025, month=4, umsatz_soll=Decimal("2000")))
+    db_session.add(MonthlyAllocation(booking_id=ver.id, year=2025, month=5, umsatz_soll=Decimal("9999")))
+    db_session.commit()
+
+    pv = pipeline_value(db_session, 2025)
+    assert pv.angebot_umsatz == Decimal("1000")
+    assert pv.angebot_count == 1
+    assert pv.beauftragt_umsatz == Decimal("2000")
+    assert pv.total_umsatz == Decimal("3000")
+    assert pv.total_count == 2
+    assert pv.monthly_soll[2] == Decimal("1000")  # Maerz
+    assert pv.monthly_soll[3] == Decimal("2000")  # April
+    assert pv.monthly_soll[4] == Decimal("0")     # Mai (verrechnet, nicht Pipeline)
+
+
+def test_accuracy_over_time_lists_all_years(db_session):
+    b1 = _booking(db_session, "AU-1", "Verein A")
+    b1.umsatz_soll = Decimal("1000")
+    b1.umsatz_ist = Decimal("1200")  # 20% Abweichung
+    b2 = _booking(db_session, "AU-2", "Verein B")
+    b2.umsatz_soll = Decimal("1000")
+    b2.umsatz_ist = Decimal("1000")  # 0% Abweichung, anderes Jahr
+    db_session.add(MonthlyAllocation(booking_id=b1.id, year=2025, month=5, umsatz_ist=Decimal("1200")))
+    db_session.add(MonthlyAllocation(booking_id=b2.id, year=2024, month=5, umsatz_ist=Decimal("1000")))
+    db_session.commit()
+
+    points = accuracy_over_time(db_session)
+    by_year = {p.year: p for p in points}
+    assert set(by_year) == {2024, 2025}
+    assert by_year[2025].mean_abs_deviation_pct == Decimal("20.0")
+    assert by_year[2024].mean_abs_deviation_pct == Decimal("0.0")

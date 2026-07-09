@@ -45,6 +45,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, default="mitarbeiter_betrieb")
     is_active: Mapped[bool] = mapped_column(default=True)
+    # True = Benutzer muss beim naechsten Login zwingend ein eigenes Passwort setzen
+    # (Erstanmeldung mit Admin-Initialpasswort oder nach Passwort-Reset durch Admin).
+    must_change_password: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
     )

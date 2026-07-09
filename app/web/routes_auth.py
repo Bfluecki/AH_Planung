@@ -39,7 +39,7 @@ def login_submit(
         log_action(db, username, "login_failed")
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Benutzername oder Passwort falsch."},
+            {"request": request, "error": "E-Mail-Adresse oder Passwort falsch."},
             status_code=401,
         )
     auth.login_session(request, user)
@@ -51,7 +51,13 @@ def login_submit(
 def password_form(request: Request, user: User = Depends(require_login)):
     return templates.TemplateResponse(
         "passwort.html",
-        {"request": request, "current_user": user.username, "error": None, "success": False},
+        {
+            "request": request,
+            "current_user": user.username,
+            "error": None,
+            "success": False,
+            "forced": user.must_change_password,
+        },
     )
 
 
@@ -67,7 +73,13 @@ def password_change(
     def render(error: str | None = None, success: bool = False):
         return templates.TemplateResponse(
             "passwort.html",
-            {"request": request, "current_user": user.username, "error": error, "success": success},
+            {
+                "request": request,
+                "current_user": user.username,
+                "error": error,
+                "success": success,
+                "forced": user.must_change_password and not success,
+            },
             status_code=200 if success else 400,
         )
 
@@ -82,6 +94,7 @@ def password_change(
         return render("Das neue Passwort muss sich vom bisherigen unterscheiden.")
 
     user.password_hash = auth.hash_password(new_password)
+    user.must_change_password = False
     db.commit()
     log_action(db, user.username, "password_self_change")
     return render(success=True)

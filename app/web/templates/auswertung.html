@@ -145,17 +145,117 @@
             </table>
         </section>
 
+        <section class="chart-card">
+            <h2>Ertragsart-Mix {{ year }}</h2>
+            <p class="hint">Woraus setzt sich der verrechnete Netto-Umsatz zusammen? Aufteilung des
+            Ist-Umsatzes des Leistungsjahres nach Produktkategorie (anteilig aus den Rechnungspositionen).</p>
+            {% if mix_segments %}
+            <div class="mix-bar">
+                {% for s in mix_segments %}
+                <div class="mix-seg" style="width: {{ s.pct }}%; background: {{ s.color }};" title="{{ s.label }}: {{ s.pct_value|swissnum(1) }}%"></div>
+                {% endfor %}
+            </div>
+            <div class="chart-legend">
+                {% for s in mix_segments %}
+                <span><span class="swatch" style="background: {{ s.color }}"></span>{{ s.label }}</span>
+                {% endfor %}
+            </div>
+            <table style="margin-top:1rem;">
+                <thead><tr><th class="text-col">Ertragsart</th><th>Umsatz Ist (netto)</th><th>Anteil</th></tr></thead>
+                <tbody>
+                    {% for s in mix %}
+                    <tr>
+                        <td class="text-col">{{ s.label }}</td>
+                        <td>{{ s.umsatz|swissnum }}</td>
+                        <td>{{ s.pct|swissnum(1) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty">Keine verrechneten Umsätze im {{ year }}.</p>
+            {% endif %}
+        </section>
+
+        <section class="chart-card">
+            <h2>Pipeline-Wert {{ year }}</h2>
+            <p class="hint">Erwarteter, noch nicht verrechneter Umsatz: offene Angebote und erteilte
+            Aufträge (Soll-Umsatz im Leistungsjahr). Grundlage für die Planbarkeit der Folgemonate.</p>
+            <div class="kpi-grid">
+                <div class="kpi">
+                    <div class="kpi-label">Angebote (ohne Auftrag)</div>
+                    <div class="kpi-value">{{ pipeline.angebot_umsatz|swissnum }}</div>
+                    <div class="kpi-sub">{{ pipeline.angebot_count }} Buchung(en)</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Aufträge (noch nicht verrechnet)</div>
+                    <div class="kpi-value">{{ pipeline.beauftragt_umsatz|swissnum }}</div>
+                    <div class="kpi-sub">{{ pipeline.beauftragt_count }} Buchung(en)</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Pipeline gesamt</div>
+                    <div class="kpi-value">{{ pipeline.total_umsatz|swissnum }}</div>
+                    <div class="kpi-sub">{{ pipeline.total_count }} offene Buchung(en)</div>
+                </div>
+            </div>
+            {% if pipeline.total_umsatz > 0 %}
+            <h3 style="margin-top:1.5rem;">Offener Soll-Umsatz pro Monat</h3>
+            <svg viewBox="0 0 {{ pipeline_chart.width }} {{ pipeline_chart.height }}" width="100%" role="img" aria-label="Pipeline pro Monat">
+                {% for g in pipeline_chart.gridlines %}
+                <line x1="{{ pipeline_chart.left_pad }}" y1="{{ g.y }}" x2="{{ pipeline_chart.right_x }}" y2="{{ g.y }}" stroke="#e0d8ca" stroke-width="1"/>
+                <text x="{{ pipeline_chart.left_pad - 6 }}" y="{{ g.y + 3 }}" text-anchor="end" font-size="10" fill="#6b6459">{{ g.label }}</text>
+                {% endfor %}
+                {% for b in pipeline_chart.bars %}
+                <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="#b08a4f" rx="2"/>
+                <text x="{{ b.label_x }}" y="{{ pipeline_chart.baseline_y + 15 }}" text-anchor="middle" font-size="10" fill="#6b6459">{{ b.label }}</text>
+                {% endfor %}
+            </svg>
+            {% endif %}
+        </section>
+
+        <section class="chart-card">
+            <h2>Prognose-Genauigkeit im Zeitverlauf</h2>
+            <p class="hint">Mittlere absolute Abweichung Ist↔Soll je Leistungsjahr (nur verrechnete
+            Buchungen). Kleiner = treffsicherer geplant.</p>
+            {% if acc_chart.bars %}
+            <svg viewBox="0 0 {{ acc_chart.width }} {{ acc_chart.height }}" width="100%" role="img" aria-label="Prognose-Genauigkeit je Jahr">
+                {% for g in acc_chart.gridlines %}
+                <line x1="{{ acc_chart.left_pad }}" y1="{{ g.y }}" x2="{{ acc_chart.right_x }}" y2="{{ g.y }}" stroke="#e0d8ca" stroke-width="1"/>
+                <text x="{{ acc_chart.left_pad - 6 }}" y="{{ g.y + 3 }}" text-anchor="end" font-size="10" fill="#6b6459">{{ g.label }}</text>
+                {% endfor %}
+                {% for b in acc_chart.bars %}
+                {% if not b.missing %}
+                <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="#3f7a4f" rx="2"/>
+                <text x="{{ b.label_x }}" y="{{ b.y - 4 }}" text-anchor="middle" font-size="10" fill="#6b6459">{{ b.value_label }}</text>
+                {% endif %}
+                <text x="{{ b.label_x }}" y="{{ acc_chart.baseline_y + 15 }}" text-anchor="middle" font-size="10" fill="#6b6459">{{ b.label }}</text>
+                {% endfor %}
+            </svg>
+            <table style="margin-top:1rem;">
+                <thead><tr><th class="text-col">Jahr</th><th>Ø Abweichung Ist↔Soll</th><th>Buchungen</th></tr></thead>
+                <tbody>
+                    {% for p in acc_points %}
+                    <tr>
+                        <td class="text-col">{{ p.year }}</td>
+                        <td>{% if p.mean_abs_deviation_pct is not none %}±{{ p.mean_abs_deviation_pct|swissnum(1) }}%{% else %}–{% endif %}</td>
+                        <td>{{ p.booking_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty">Noch keine Datenbasis für den Zeitvergleich.</p>
+            {% endif %}
+        </section>
+
         <section class="doc">
             <h2>Geplante weitere Auswertungen</h2>
-            <p>Vorschlag für den weiteren Ausbau der Performance-Analyse – priorisiert nach Nutzen:</p>
+            <p>Vorschlag für den weiteren Ausbau der Performance-Analyse:</p>
             <table>
                 <tr><th>Kennzahl / Grafik</th><th>Nutzen</th></tr>
-                <tr><td><strong>Ertragsart-Mix</strong> (Übernachtung / Verpflegung / Raum / Kurtaxe …)</td><td>Wovon lebt der Betrieb? Verschiebungen über die Jahre erkennen.</td></tr>
                 <tr><td><strong>Kumulierte Zielerreichung</strong> (Jahresverlauf)</td><td>Liegt das Jahr per Stichtag vor oder hinter Budget? Frühwarnung.</td></tr>
-                <tr><td><strong>Pipeline-Wert</strong> (Angebote + Aufträge ohne Rechnung)</td><td>Erwarteter zukünftiger Umsatz, Planbarkeit der Folgemonate.</td></tr>
-                <tr><td><strong>Soll↔Ist-Genauigkeit im Zeitverlauf</strong></td><td>Wird die Planung über die Jahre treffsicherer? (bereits als KPI oben angelegt)</td></tr>
             </table>
-            <div class="callout">Sag mir, welche dieser Auswertungen du zuerst möchtest – ich baue sie
+            <div class="callout">Sag mir, wenn du diese Auswertung auch möchtest – ich baue sie
             in derselben Systematik (aus denselben Bexio-Daten) dazu.</div>
         </section>
     </div>

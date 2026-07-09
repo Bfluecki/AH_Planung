@@ -12,6 +12,7 @@ import os
 import secrets
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -61,6 +62,21 @@ def get_user_by_username(db: Session, username: str) -> User | None:
     return db.query(User).filter(User.username == username).one_or_none()
 
 
+def get_user_by_email(db: Session, email: str) -> User | None:
+    email = email.strip()
+    if not email:
+        return None
+    return db.query(User).filter(func.lower(User.email) == email.lower()).first()
+
+
+def get_user_by_login(db: Session, login: str) -> User | None:
+    """Anmeldung erfolgt primaer ueber die E-Mail-Adresse (wie bei Microsoft & Co.);
+    ersatzweise wird der Benutzername akzeptiert - z.B. fuer den Seed-Admin ohne
+    E-Mail-Adresse."""
+    login = login.strip()
+    return get_user_by_email(db, login) or get_user_by_username(db, login)
+
+
 def create_user(
     db: Session,
     username: str,
@@ -69,6 +85,7 @@ def create_user(
     first_name: str = "",
     last_name: str = "",
     email: str = "",
+    must_change_password: bool = False,
 ) -> User:
     user = User(
         username=username.strip(),
@@ -77,6 +94,7 @@ def create_user(
         first_name=first_name.strip(),
         last_name=last_name.strip(),
         email=email.strip(),
+        must_change_password=must_change_password,
     )
     db.add(user)
     db.commit()
@@ -84,8 +102,9 @@ def create_user(
     return user
 
 
-def authenticate(db: Session, username: str, password: str) -> User | None:
-    user = get_user_by_username(db, username.strip())
+def authenticate(db: Session, login: str, password: str) -> User | None:
+    """login = E-Mail-Adresse (oder ersatzweise Benutzername)."""
+    user = get_user_by_login(db, login)
     if user and user.is_active and verify_password(password, user.password_hash):
         return user
     return None
@@ -135,9 +154,17 @@ class _Redirect(HTTPException):
         super().__init__(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": location})
 
 
-def require_login(user: User | None = Depends(current_user)) -> User:
+# Diese Pfade bleiben erreichbar, solange ein Passwortwechsel erzwungen ist, damit der
+# Benutzer sein neues Passwort setzen (oder sich abmelden) kann.
+_PASSWORD_EXEMPT_PATHS = {"/passwort", "/logout"}
+
+
+def require_login(request: Request, user: User | None = Depends(current_user)) -> User:
     if user is None:
         raise _Redirect("/login")
+    # Erstanmeldung / nach Admin-Reset: Passwortwechsel erzwingen, bevor die App nutzbar ist.
+    if user.must_change_password and request.url.path not in _PASSWORD_EXEMPT_PATHS:
+        raise _Redirect("/passwort")
     return user
 
 

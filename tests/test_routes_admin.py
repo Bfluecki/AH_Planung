@@ -151,8 +151,7 @@ def test_admin_can_create_user_with_full_profile(client):
     resp = test_client.post(
         "/admin/users/create",
         data={
-            "new_username": "hans",
-            "new_password": "pw12345",
+            "new_password": "pw123456",
             "new_first_name": "Hans",
             "new_last_name": "Muster",
             "new_email": "hans@example.ch",
@@ -161,12 +160,16 @@ def test_admin_can_create_user_with_full_profile(client):
         follow_redirects=False,
     )
     assert resp.status_code == 303
-    from app.auth import get_user_by_username
+    from app.auth import get_user_by_login
     db = TestSession()
-    u = get_user_by_username(db, "hans")
+    # E-Mail ist zugleich der Anmeldename.
+    u = get_user_by_login(db, "hans@example.ch")
     assert u is not None and u.role == "betriebsleitung" and u.is_active
+    assert u.username == "hans@example.ch"
     assert u.first_name == "Hans" and u.last_name == "Muster" and u.email == "hans@example.ch"
     assert u.display_name == "Hans Muster"
+    # Neu angelegte Benutzer muessen ihr Initialpasswort aendern.
+    assert u.must_change_password is True
     db.close()
 
 
@@ -200,7 +203,7 @@ def test_audit_log_records_login_and_user_create(client):
     test_client, TestSession = client
     test_client.post(
         "/admin/users/create",
-        data={"new_username": "lea", "new_password": "pw12345", "new_role": "user"},
+        data={"new_email": "lea@example.ch", "new_password": "pw123456", "new_role": "betriebsleitung"},
     )
     from app.audit import recent_entries
     db = TestSession()

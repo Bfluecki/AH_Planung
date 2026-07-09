@@ -141,30 +141,32 @@ def admin_clear_bexio(db: Session = Depends(get_db), user: User = Depends(requir
 @router.post("/users/create")
 def admin_create_user(
     request: Request,
-    new_username: str = Form(...),
+    new_email: str = Form(...),
     new_password: str = Form(...),
     new_first_name: str = Form(""),
     new_last_name: str = Form(""),
-    new_email: str = Form(""),
     new_role: str = Form(ROLE_MITARBEITER),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
-    uname = new_username.strip()
+    # Die E-Mail-Adresse ist zugleich der Login-Name (wie bei Microsoft &Co.).
+    email = new_email.strip()
     role = new_role if new_role in ALL_ROLES else ROLE_MITARBEITER
-    if not uname or not new_password:
+    if not email or not new_password:
         return templates.TemplateResponse(
-            "admin.html", _context(request, db, user, "Benutzername und Passwort sind erforderlich.")
+            "admin.html", _context(request, db, user, "E-Mail-Adresse und Initialpasswort sind erforderlich.")
         )
-    if auth.get_user_by_username(db, uname):
+    if auth.get_user_by_login(db, email):
         return templates.TemplateResponse(
-            "admin.html", _context(request, db, user, f"Benutzer «{uname}» existiert bereits.")
+            "admin.html", _context(request, db, user, f"Benutzer «{email}» existiert bereits.")
         )
+    # Neu angelegte Benutzer muessen ihr Initialpasswort bei der ersten Anmeldung aendern.
     auth.create_user(
-        db, uname, new_password, role=role,
-        first_name=new_first_name, last_name=new_last_name, email=new_email,
+        db, email, new_password, role=role,
+        first_name=new_first_name, last_name=new_last_name, email=email,
+        must_change_password=True,
     )
-    log_action(db, user.username, "user_create", f"{uname} ({role})")
+    log_action(db, user.username, "user_create", f"{email} ({role})")
     return RedirectResponse(url="/admin?user_created=1#benutzer", status_code=303)
 
 
@@ -193,7 +195,9 @@ def admin_update_user(
     elif action == "activate":
         target.is_active = True
     elif action == "password" and value.strip():
+        # Admin-Reset: neues Passwort ist ein Initialpasswort -> Zwangswechsel beim Login.
         target.password_hash = auth.hash_password(value.strip())
+        target.must_change_password = True
     elif action == "role" and value in ALL_ROLES:
         # Letzten aktiven Admin nicht "wegdegradieren".
         active_admins = db.query(User).filter(User.role == ROLE_ADMIN, User.is_active).count()

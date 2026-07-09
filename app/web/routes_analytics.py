@@ -13,9 +13,12 @@ from app.auth import User, require_login
 from app.config import get_settings
 from app.db import get_db
 from app.domain.analytics import (
+    accuracy_over_time,
     average_stats,
     available_years,
+    ertragsart_mix,
     monthly_occupancy,
+    pipeline_value,
     soll_ist_accuracy,
     top_customers,
     year_figures,
@@ -121,6 +124,51 @@ def _build_bar_chart(monthly: list[tuple[int, Decimal]], max_val: float = 100.0)
     }
 
 
+def _build_labeled_bar_chart(
+    items: list[tuple[str, Decimal | None]], max_val: float | None = None, unit: str = ""
+) -> dict:
+    """Balkendiagramm mit frei beschrifteten Balken (z.B. je Jahr). None-Werte werden
+    als fehlend (kein Balken) behandelt. max_val=None -> automatische Skalierung."""
+    plot_w = _CHART_W - _PAD_L - _PAD_R
+    plot_h = _CHART_H - _PAD_T - _PAD_B
+    baseline_y = _PAD_T + plot_h
+    present = [float(v) for _, v in items if v is not None]
+    scale = (max_val if max_val is not None else max(present, default=0.0)) or 1.0
+    n = max(len(items), 1)
+    slot = plot_w / n
+    bar_w = slot * 0.5
+
+    bars = []
+    for i, (label, value) in enumerate(items):
+        cx = _PAD_L + slot * i + slot / 2
+        bar = {"label": label, "label_x": round(cx, 1), "missing": value is None}
+        if value is not None:
+            h = plot_h * (float(value) / scale)
+            bar.update({
+                "x": round(cx - bar_w / 2, 1),
+                "y": round(baseline_y - h, 1),
+                "w": round(bar_w, 1),
+                "h": round(h, 1),
+                "value_label": swissnum(Decimal(str(value)), 1) + unit,
+            })
+        bars.append(bar)
+
+    gridlines = []
+    for frac in (0, 0.25, 0.5, 0.75, 1.0):
+        gy = _PAD_T + plot_h * (1 - frac)
+        gridlines.append({"y": round(gy, 1), "label": swissnum(Decimal(str(scale * frac)), 0) + unit})
+
+    return {
+        "width": _CHART_W,
+        "height": _CHART_H,
+        "bars": bars,
+        "gridlines": gridlines,
+        "baseline_y": round(baseline_y, 1),
+        "left_pad": _PAD_L,
+        "right_x": _CHART_W - _PAD_R,
+    }
+
+
 @router.get("/auswertung")
 def auswertung(
     request: Request,
@@ -157,6 +205,31 @@ def auswertung(
     customers = top_customers(db, current, limit=15)
     averages = average_stats(db, current)
 
+    # Ertragsart-Mix: segmentierter Balken (Anteile) + Tabelle.
+    mix = ertragsart_mix(db, current)
+    mix_segments = [
+        {
+            "label": s.label,
+            "pct": float(s.pct),
+            "umsatz": s.umsatz,
+            "pct_value": s.pct,
+            "color": _LINE_COLORS[i % len(_LINE_COLORS)],
+        }
+        for i, s in enumerate(mix)
+    ]
+
+    # Soll-Ist-Genauigkeit im Zeitverlauf (kleiner = treffsicherer).
+    acc_points = accuracy_over_time(db)
+    acc_chart = _build_labeled_bar_chart(
+        [(str(p.year), p.mean_abs_deviation_pct) for p in acc_points], unit="%"
+    )
+
+    # Pipeline-Wert (Angebote + Auftraege ohne Rechnung) je Monat.
+    pipeline = pipeline_value(db, current)
+    pipeline_chart = _build_bar_chart(
+        [(m + 1, pipeline.monthly_soll[m]) for m in range(12)], max_val=0.0
+    )
+
     return templates.TemplateResponse(
         "auswertung.html",
         {
@@ -175,5 +248,11 @@ def auswertung(
             "customers": customers,
             "averages": averages,
             "month_abbr": MONTH_ABBR,
+            "mix": mix,
+            "mix_segments": mix_segments,
+            "acc_points": acc_points,
+            "acc_chart": acc_chart,
+            "pipeline": pipeline,
+            "pipeline_chart": pipeline_chart,
         },
     )
