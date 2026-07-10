@@ -31,6 +31,7 @@ from app.models import (
     Order,
     Quote,
 )
+from app.web.formatting import swisstime
 
 _DOCUMENT_MODELS = {
     "quote": Quote,
@@ -41,6 +42,7 @@ _DOCUMENT_MODELS = {
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates.env.filters["swisstime"] = swisstime
 
 
 def _context(request: Request, db: Session, user: User, message: str | None = None) -> dict:

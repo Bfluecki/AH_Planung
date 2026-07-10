@@ -34,7 +34,7 @@
         {% if effective.bexio_auth_mode == "api_token" %}
         <p>Status: <span class="status-ok">API-Token gesetzt</span></p>
         {% elif token %}
-        <p>Status: <span class="status-ok">verbunden (OAuth2)</span> — Token gültig bis {{ token.expires_at.strftime("%d.%m.%Y %H:%M UTC") }}, Scope: {{ token.scope or "-" }}</p>
+        <p>Status: <span class="status-ok">verbunden (OAuth2)</span> — Token gültig bis {{ token.expires_at|swisstime("%d.%m.%Y %H:%M") }} (Bern), Scope: {{ token.scope or "-" }}</p>
         {% else %}
         <p>Status: <span class="status-missing">nicht verbunden</span></p>
         {% endif %}
@@ -167,42 +167,48 @@
                     </td>
                     <td class="text-col">
                         <div class="user-actions">
-                            {% if u.is_active %}
-                            <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
-                                <input type="hidden" name="action" value="deactivate">
-                                <button type="submit">Deaktivieren</button>
-                            </form>
-                            {% else %}
-                            <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
-                                <input type="hidden" name="action" value="activate">
-                                <button type="submit">Aktivieren</button>
-                            </form>
-                            {% endif %}
-                            <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
-                                <input type="hidden" name="action" value="password">
-                                <input type="password" name="value" placeholder="neues Passwort" size="14">
-                                <button type="submit">Setzen</button>
-                            </form>
-                            <details class="user-edit">
-                                <summary>Bearbeiten</summary>
-                                <form action="/admin/users/{{ u.id }}/update" method="post">
-                                    <input type="hidden" name="action" value="profile">
-                                    <label>Vorname
-                                        <input type="text" name="first_name" value="{{ u.first_name }}">
-                                    </label>
-                                    <label>Name
-                                        <input type="text" name="last_name" value="{{ u.last_name }}">
-                                    </label>
-                                    <label>E-Mail (Anmeldename)
-                                        <input type="email" name="email" value="{{ u.email }}">
-                                    </label>
-                                    <button type="submit" class="primary">Speichern</button>
+                            <div class="user-actions-row">
+                                <details class="user-edit">
+                                    <summary class="btn-like">Bearbeiten</summary>
+                                    <div class="user-edit-body">
+                                        <form action="/admin/users/{{ u.id }}/update" method="post" class="stacked-form">
+                                            <input type="hidden" name="action" value="profile">
+                                            <label>Vorname
+                                                <input type="text" name="first_name" value="{{ u.first_name }}">
+                                            </label>
+                                            <label>Name
+                                                <input type="text" name="last_name" value="{{ u.last_name }}">
+                                            </label>
+                                            <label>E-Mail (Anmeldename)
+                                                <input type="email" name="email" value="{{ u.email }}">
+                                            </label>
+                                            <button type="submit" class="primary">Profil speichern</button>
+                                        </form>
+                                        <form action="/admin/users/{{ u.id }}/update" method="post" class="stacked-form">
+                                            <input type="hidden" name="action" value="password">
+                                            <label>Neues Passwort setzen
+                                                <input type="password" name="value" placeholder="Initialpasswort" autocomplete="new-password">
+                                            </label>
+                                            <button type="submit">Passwort setzen</button>
+                                        </form>
+                                    </div>
+                                </details>
+                                {% if u.is_active %}
+                                <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                                    <input type="hidden" name="action" value="deactivate">
+                                    <button type="submit" class="btn-soft">Deaktivieren</button>
                                 </form>
-                            </details>
-                            <form action="/admin/users/{{ u.id }}/delete" method="post" class="inline-form"
-                                  onsubmit="return confirm('Benutzer «{{ u.username }}» wirklich unwiderruflich löschen?');">
-                                <button type="submit" class="danger">Löschen</button>
-                            </form>
+                                {% else %}
+                                <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                                    <input type="hidden" name="action" value="activate">
+                                    <button type="submit" class="btn-soft">Aktivieren</button>
+                                </form>
+                                {% endif %}
+                                <form action="/admin/users/{{ u.id }}/delete" method="post" class="inline-form"
+                                      onsubmit="return confirm('Benutzer «{{ u.username }}» wirklich unwiderruflich löschen?');">
+                                    <button type="submit" class="danger">Löschen</button>
+                                </form>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -253,7 +259,7 @@
         <table>
             <thead>
                 <tr>
-                    <th class="text-col">Zeitpunkt (UTC)</th>
+                    <th class="text-col">Zeitpunkt (Bern)</th>
                     <th class="text-col">Benutzer</th>
                     <th class="text-col">Aktion</th>
                     <th class="text-col">Details</th>
@@ -262,7 +268,7 @@
             <tbody>
                 {% for e in audit_entries %}
                 <tr>
-                    <td class="text-col">{{ e.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+                    <td class="text-col">{{ e.timestamp|swisstime }}</td>
                     <td class="text-col">{{ e.username }}</td>
                     <td class="text-col">{{ e.action }}</td>
                     <td class="text-col">{{ e.detail }}</td>
