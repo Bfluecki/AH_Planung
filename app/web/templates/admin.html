@@ -166,22 +166,44 @@
                         {% if u.must_change_password %}<br><span class="source-tag">Passwortwechsel offen</span>{% endif %}
                     </td>
                     <td class="text-col">
-                        {% if u.is_active %}
-                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
-                            <input type="hidden" name="action" value="deactivate">
-                            <button type="submit">Deaktivieren</button>
-                        </form>
-                        {% else %}
-                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
-                            <input type="hidden" name="action" value="activate">
-                            <button type="submit">Aktivieren</button>
-                        </form>
-                        {% endif %}
-                        <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
-                            <input type="hidden" name="action" value="password">
-                            <input type="password" name="value" placeholder="neues Passwort" size="14">
-                            <button type="submit">Setzen</button>
-                        </form>
+                        <div class="user-actions">
+                            {% if u.is_active %}
+                            <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                                <input type="hidden" name="action" value="deactivate">
+                                <button type="submit">Deaktivieren</button>
+                            </form>
+                            {% else %}
+                            <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                                <input type="hidden" name="action" value="activate">
+                                <button type="submit">Aktivieren</button>
+                            </form>
+                            {% endif %}
+                            <form action="/admin/users/{{ u.id }}/update" method="post" class="inline-form">
+                                <input type="hidden" name="action" value="password">
+                                <input type="password" name="value" placeholder="neues Passwort" size="14">
+                                <button type="submit">Setzen</button>
+                            </form>
+                            <details class="user-edit">
+                                <summary>Bearbeiten</summary>
+                                <form action="/admin/users/{{ u.id }}/update" method="post">
+                                    <input type="hidden" name="action" value="profile">
+                                    <label>Vorname
+                                        <input type="text" name="first_name" value="{{ u.first_name }}">
+                                    </label>
+                                    <label>Name
+                                        <input type="text" name="last_name" value="{{ u.last_name }}">
+                                    </label>
+                                    <label>E-Mail (Anmeldename)
+                                        <input type="email" name="email" value="{{ u.email }}">
+                                    </label>
+                                    <button type="submit" class="primary">Speichern</button>
+                                </form>
+                            </details>
+                            <form action="/admin/users/{{ u.id }}/delete" method="post" class="inline-form"
+                                  onsubmit="return confirm('Benutzer «{{ u.username }}» wirklich unwiderruflich löschen?');">
+                                <button type="submit" class="danger">Löschen</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

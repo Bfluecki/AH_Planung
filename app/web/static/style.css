@@ -190,6 +190,15 @@ table.admin-form input, table.admin-form select { padding: 0.4rem 0.55rem; borde
 button.primary, .content button[type="submit"] { background: var(--color-accent); color: #fff; border: 1px solid var(--color-accent); padding: 0.45rem 1rem; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem; }
 button.primary:hover { background: var(--color-accent-dark); }
 
+/* ---- Benutzer-Aktionen (Admin-Tabelle) ---- */
+.user-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+.content button.danger { background: var(--color-negative); border-color: var(--color-negative); }
+.content button.danger:hover { background: #832530; }
+.user-edit summary { cursor: pointer; color: var(--color-accent); font-size: 0.85rem; }
+.user-edit form { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.5rem; padding: 0.6rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-row-alt); }
+.user-edit label { display: flex; flex-direction: column; font-size: 0.78rem; color: var(--color-muted); gap: 0.15rem; }
+.user-edit input { padding: 0.35rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); min-width: 220px; }
+
 /* ---- Login-Seite ---- */
 .login-wrap { max-width: 360px; margin: 4rem auto; background: var(--color-surface); padding: 2rem; border-radius: var(--radius); box-shadow: var(--shadow); border-top: 4px solid var(--color-accent); }
 .login-wrap h1 { margin-top: 0; font-size: 1.4rem; }

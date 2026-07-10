@@ -73,6 +73,8 @@ def admin_page(request: Request, db: Session = Depends(get_db), user: User = Dep
         message = "Benutzer angelegt."
     elif request.query_params.get("user_updated"):
         message = "Benutzer aktualisiert."
+    elif request.query_params.get("user_deleted"):
+        message = "Benutzer gelöscht."
     return templates.TemplateResponse("admin.html", _context(request, db, user, message))
 
 
@@ -174,8 +176,11 @@ def admin_create_user(
 def admin_update_user(
     user_id: int,
     request: Request,
-    action: str = Form(...),  # "activate" | "deactivate" | "password" | "role"
+    action: str = Form(...),  # "activate" | "deactivate" | "password" | "role" | "profile"
     value: str = Form(""),
+    first_name: str = Form(""),
+    last_name: str = Form(""),
+    email: str = Form(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
@@ -207,9 +212,52 @@ def admin_update_user(
                 _context(request, db, user, "Der letzte aktive Administrator kann die Rolle nicht abgeben."),
             )
         target.role = value
+    elif action == "profile":
+        new_email = email.strip()
+        # E-Mail ist zugleich der Anmeldename -> Eindeutigkeit gegen andere Benutzer pruefen.
+        if new_email:
+            existing = auth.get_user_by_login(db, new_email)
+            if existing and existing.id != target.id:
+                return templates.TemplateResponse(
+                    "admin.html",
+                    _context(request, db, user, f"Die E-Mail «{new_email}» wird bereits von einem anderen Benutzer verwendet."),
+                )
+            target.email = new_email
+            target.username = new_email
+        target.first_name = first_name.strip()
+        target.last_name = last_name.strip()
     db.commit()
     log_action(db, user.username, "user_update", f"{target.username}: {action} {value if action=='role' else ''}".strip())
     return RedirectResponse(url="/admin?user_updated=1#benutzer", status_code=303)
+
+
+@router.post("/users/{user_id}/delete")
+def admin_delete_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    target = db.get(User, user_id)
+    if target is None:
+        return RedirectResponse(url="/admin#benutzer", status_code=303)
+    # Sich selbst nicht loeschen und den letzten aktiven Admin nicht loeschen.
+    if target.id == user.id:
+        return templates.TemplateResponse(
+            "admin.html", _context(request, db, user, "Sie können sich nicht selbst löschen.")
+        )
+    if target.role == ROLE_ADMIN:
+        active_admins = db.query(User).filter(User.role == ROLE_ADMIN, User.is_active).count()
+        if active_admins <= 1:
+            return templates.TemplateResponse(
+                "admin.html",
+                _context(request, db, user, "Der letzte aktive Administrator kann nicht gelöscht werden."),
+            )
+    username = target.username
+    db.delete(target)
+    db.commit()
+    log_action(db, user.username, "user_delete", username)
+    return RedirectResponse(url="/admin?user_deleted=1#benutzer", status_code=303)
 
 
 @router.get("/debug/line-items")

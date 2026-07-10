@@ -173,6 +173,81 @@ def test_admin_can_create_user_with_full_profile(client):
     db.close()
 
 
+def test_admin_can_edit_user_profile(client):
+    test_client, TestSession = client
+    from app.auth import create_user, get_user_by_login
+    db = TestSession()
+    u = create_user(db, "alt@example.ch", "pw123456", role="mitarbeiter_betrieb", email="alt@example.ch")
+    uid = u.id
+    db.close()
+    resp = test_client.post(
+        f"/admin/users/{uid}/update",
+        data={"action": "profile", "first_name": "Neu", "last_name": "Name", "email": "neu@example.ch"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    db = TestSession()
+    from app.models import User as U
+    u2 = db.get(U, uid)
+    assert u2.first_name == "Neu" and u2.last_name == "Name"
+    # E-Mail ist zugleich der Anmeldename -> beide aktualisiert.
+    assert u2.email == "neu@example.ch" and u2.username == "neu@example.ch"
+    assert get_user_by_login(db, "neu@example.ch") is not None
+    db.close()
+
+
+def test_edit_profile_rejects_duplicate_email(client):
+    test_client, TestSession = client
+    from app.auth import create_user
+    db = TestSession()
+    create_user(db, "a@example.ch", "pw123456", email="a@example.ch")
+    b = create_user(db, "b@example.ch", "pw123456", email="b@example.ch")
+    bid = b.id
+    db.close()
+    # b bekommt a's E-Mail -> Konflikt, keine Aenderung.
+    resp = test_client.post(
+        f"/admin/users/{bid}/update",
+        data={"action": "profile", "email": "a@example.ch"},
+    )
+    assert resp.status_code == 200  # Fehlermeldung, kein Redirect
+    assert "bereits" in resp.text
+    db = TestSession()
+    from app.models import User as U
+    assert db.get(U, bid).email == "b@example.ch"
+    db.close()
+
+
+def test_admin_can_delete_user(client):
+    test_client, TestSession = client
+    from app.auth import create_user, get_user_by_login
+    db = TestSession()
+    u = create_user(db, "weg@example.ch", "pw123456", email="weg@example.ch")
+    uid = u.id
+    db.close()
+    resp = test_client.post(f"/admin/users/{uid}/delete", follow_redirects=False)
+    assert resp.status_code == 303
+    db = TestSession()
+    from app.models import User as U
+    assert db.get(U, uid) is None
+    assert get_user_by_login(db, "weg@example.ch") is None
+    db.close()
+
+
+def test_cannot_delete_last_admin_or_self(client):
+    test_client, TestSession = client
+    from app.models import User as U
+    db = TestSession()
+    admin = db.query(U).filter(U.role == "admin").first()
+    admin_id = admin.id
+    db.close()
+    # Der eingeloggte Admin ist zugleich der letzte Admin -> Loeschen abgelehnt.
+    resp = test_client.post(f"/admin/users/{admin_id}/delete")
+    assert resp.status_code == 200
+    db = TestSession()
+    assert db.get(U, admin_id) is not None
+    db.close()
+
+
 def test_cannot_deactivate_last_admin(client):
     test_client, TestSession = client
     from app.models import User
