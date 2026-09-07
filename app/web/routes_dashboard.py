@@ -23,6 +23,7 @@ from app.domain.soll_ist import (
     STATUS_STORNIERT,
     STATUS_VERRECHNET,
 )
+from app.web.flash import pop_flash
 from app.web.formatting import swissnum
 
 router = APIRouter(tags=["dashboard"])
@@ -73,6 +74,7 @@ def dashboard(
             "search": search,
             "current_user": user.username,
             "is_admin": user.role == ROLE_ADMIN,
+            "flash": pop_flash(request),
         },
     )
 

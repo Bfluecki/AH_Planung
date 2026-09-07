@@ -31,6 +31,7 @@ from app.models import (
     Order,
     Quote,
 )
+from app.web.flash import pop_flash
 from app.web.formatting import swisstime
 
 _DOCUMENT_MODELS = {
@@ -45,13 +46,20 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.filters["swisstime"] = swisstime
 
 
-def _context(request: Request, db: Session, user: User, message: str | None = None) -> dict:
+def _context(
+    request: Request,
+    db: Session,
+    user: User,
+    message: str | None = None,
+    message_kind: str | None = None,
+) -> dict:
     settings = get_settings()
     effective = get_effective_config(db, settings)
     token = db.get(OAuthToken, 1)
     return {
         "request": request,
         "message": message,
+        "message_kind": message_kind,
         "effective": effective,
         "redirect_uri": settings.bexio_redirect_uri,
         "token": token,
@@ -66,18 +74,25 @@ def _context(request: Request, db: Session, user: User, message: str | None = No
 
 @router.get("")
 def admin_page(request: Request, db: Session = Depends(get_db), user: User = Depends(require_admin)):
-    message = None
-    if request.query_params.get("saved"):
-        message = "Gespeichert."
-    elif request.query_params.get("cleared"):
-        message = "Bexio-Zugangsdaten-Override (Client-ID/Secret/API-Token) entfernt, Env-Variablen gelten wieder."
-    elif request.query_params.get("user_created"):
-        message = "Benutzer angelegt."
-    elif request.query_params.get("user_updated"):
-        message = "Benutzer aktualisiert."
-    elif request.query_params.get("user_deleted"):
-        message = "Benutzer gelöscht."
-    return templates.TemplateResponse("admin.html", _context(request, db, user, message))
+    # Meldung aus einem POST/Redirect/GET-Lauf (z.B. Sync) hat Vorrang vor den
+    # einfachen Query-Flags der Formulare auf dieser Seite.
+    flash = pop_flash(request)
+    message = flash["text"] if flash else None
+    message_kind = flash["kind"] if flash else None
+    if message is None:
+        if request.query_params.get("saved"):
+            message = "Gespeichert."
+        elif request.query_params.get("cleared"):
+            message = "Bexio-Zugangsdaten-Override (Client-ID/Secret/API-Token) entfernt, Env-Variablen gelten wieder."
+        elif request.query_params.get("user_created"):
+            message = "Benutzer angelegt."
+        elif request.query_params.get("user_updated"):
+            message = "Benutzer aktualisiert."
+        elif request.query_params.get("user_deleted"):
+            message = "Benutzer gelöscht."
+    return templates.TemplateResponse(
+        "admin.html", _context(request, db, user, message, message_kind)
+    )
 
 
 @router.post("/save")
