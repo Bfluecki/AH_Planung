@@ -26,6 +26,7 @@
                 {% if search %}<a href="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}" class="clear-search">✕</a>{% endif %}
             </form>
             <form action="/sync/run" method="post" class="inline-form">
+                <input type="hidden" name="redirect_to" value="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}{% if search %}&q={{ search|urlencode }}{% endif %}">
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
             <details class="status-filter">
@@ -50,6 +51,12 @@
     </header>
 
     <div class="content">
+    {% if flash %}
+    <section>
+        <p class="notice {{ 'notice-error' if flash.kind == 'error' else '' }}">{{ flash.text }}</p>
+    </section>
+    {% endif %}
+
     <section>
         <h2>Jahresübersicht</h2>
         <table class="overview">

@@ -23,7 +23,7 @@
     <div class="content">
     {% if message %}
     <section>
-        <p class="notice">{{ message }}</p>
+        <p class="notice {{ 'notice-error' if message_kind == 'error' else '' }}">{{ message }}</p>
     </section>
     {% endif %}
 
@@ -43,6 +43,7 @@
             <a href="/bexio/login" class="button">Mit Bexio verbinden (OAuth2)</a>
             {% endif %}
             <form action="/sync/run" method="post" class="inline-form">
+                <input type="hidden" name="redirect_to" value="/admin">
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
         </nav>
