@@ -1,6 +1,8 @@
 """Manuelles Anstossen des Sync-Laufs (zusaetzlich zum Scheduler, siehe app/scheduler.py)."""
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -38,6 +40,28 @@ def summarize_stats(stats: dict) -> str:
     return "Synchronisierung erfolgreich: " + ", ".join(teile) + " aktualisiert."
 
 
+def _wants_html(request: Request) -> bool:
+    """Browser-Formular oder API-Client? Browser schicken beim Absenden eines
+    Formulars "text/html" im Accept-Header, Skripte/curl dagegen nicht."""
+    return "text/html" in request.headers.get("accept", "").lower()
+
+
+def _referer_target(request: Request) -> str:
+    """Ausgangsseite aus dem Referer-Header - nur Pfad und Query, nie Host oder
+    Schema, damit die Weiterleitung zwingend auf dieser Seite bleibt."""
+    referer = request.headers.get("referer", "")
+    if not referer:
+        return "/"
+    parts = urlsplit(referer)
+    path = parts.path or "/"
+    if parts.query:
+        path = f"{path}?{parts.query}"
+    if path.startswith("/sync/"):
+        # Nicht auf die Sync-Route selbst zurueckleiten.
+        return "/"
+    return safe_redirect_target(path)
+
+
 @router.post("/run")
 def run_sync(
     request: Request,
@@ -47,12 +71,19 @@ def run_sync(
 ):
     """Startet den Sync.
 
-    Kommt der Aufruf aus einem Formular der Weboberflaeche (Feld ``redirect_to``),
-    wird nach dem Lauf per 303 auf die Seite zurueckgeleitet und das Ergebnis dort
-    als Meldung angezeigt. Ohne ``redirect_to`` bleibt es bei der JSON-Antwort fuer
-    API-Aufrufe.
+    Kommt der Aufruf aus der Weboberflaeche, wird nach dem Lauf per 303 auf die
+    Ausgangsseite zurueckgeleitet und das Ergebnis dort als Meldung angezeigt.
+    Das Ziel steht im Formularfeld ``redirect_to``; fehlt es (z.B. weil im Browser
+    noch eine aeltere Fassung der Seite offen ist), dient der Referer-Header als
+    Rueckfallebene. Nur echte API-Aufrufe - erkennbar daran, dass sie kein HTML
+    erwarten - bekommen weiterhin die JSON-Antwort.
     """
-    target = safe_redirect_target(redirect_to) if redirect_to else ""
+    if redirect_to:
+        target = safe_redirect_target(redirect_to)
+    elif _wants_html(request):
+        target = _referer_target(request)
+    else:
+        target = ""
     try:
         stats = full_sync(db)
     except (BexioAuthError, BexioApiError) as exc:

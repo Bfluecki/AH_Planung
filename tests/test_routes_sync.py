@@ -89,6 +89,41 @@ def test_dashboard_shows_message_after_sync(client, monkeypatch):
     assert "Synchronisierung erfolgreich" in page.text
 
 
+def test_old_cached_page_without_field_still_redirects(client, monkeypatch):
+    """Eine vor dem Deploy geladene Seite sendet kein redirect_to mit - dann muss
+    der Referer als Rueckfallebene greifen, sonst sieht der Benutzer wieder JSON."""
+    monkeypatch.setattr("app.api.routes_sync.full_sync", lambda db: STATS)
+
+    response = client.post(
+        "/sync/run",
+        headers={"accept": "text/html,application/xhtml+xml", "referer": "https://app.example/?year=2026"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/?year=2026"
+
+
+def test_referer_host_is_ignored(client, monkeypatch):
+    """Aus dem Referer wird nur Pfad und Query uebernommen, nie ein fremder Host."""
+    monkeypatch.setattr("app.api.routes_sync.full_sync", lambda db: STATS)
+
+    response = client.post(
+        "/sync/run",
+        headers={"accept": "text/html", "referer": "https://evil.example/admin"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin"
+
+
+def test_browser_post_without_referer_returns_to_dashboard(client, monkeypatch):
+    monkeypatch.setattr("app.api.routes_sync.full_sync", lambda db: STATS)
+
+    response = client.post("/sync/run", headers={"accept": "text/html"}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+
+
 def test_form_post_shows_bexio_error_instead_of_raw_json(client, monkeypatch):
     def boom(db):
         raise BexioApiError(502, "kaputt")
