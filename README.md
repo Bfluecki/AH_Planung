@@ -118,8 +118,48 @@ Ist kein DB-Override gesetzt, gilt weiterhin die Env-Variable.
 3. Alle Variablen aus `.env.example` als Railway-Env-Variablen setzen (insbesondere
    `BEXIO_CLIENT_ID`, `BEXIO_CLIENT_SECRET`, `BEXIO_REDIRECT_URI`, `SECRET_KEY`,
    `ADMIN_PASSWORD` falls die Admin-Seite genutzt werden soll).
-4. `railway.json` führt vor jedem Deploy `alembic upgrade head` aus und startet danach
-   `uvicorn`.
+4. `railway.json` erstellt vor jedem Deploy ein Backup (siehe unten), führt dann
+   `alembic upgrade head` aus und startet danach `uvicorn`.
+
+## Backup
+
+Vor jedem Deploy sichert `python -m app.backup` den kompletten Datenbestand — und zwar
+**bevor** `alembic upgrade head` die Datenbank anfassen kann. Gesichert wird als
+gzip-komprimierte JSON-Lines-Datei in einen S3-kompatiblen Objektspeicher (AWS S3,
+Backblaze B2, Wasabi, Cloudflare R2, MinIO), konfiguriert über die `BACKUP_S3_*`-
+Variablen aus `.env.example`.
+
+> **Der Bucket muss privat sein.** Das Backup enthält den vollständigen Datenbestand,
+> inklusive Passwort-Hashes der Benutzer und der hinterlegten Bexio-Zugangsdaten.
+
+Verhalten im Betrieb:
+
+- Ohne konfigurierten Bucket wird das Backup übersprungen und der Start normal
+  fortgesetzt — die App geht nie wegen eines fehlenden Backups offline. Ein
+  fehlgeschlagenes Backup bricht den Deploy nur bei `BACKUP_REQUIRED=true` ab.
+- Pro Deployment entsteht genau ein Backup; Neustarts derselben Version (Absturz,
+  Sleep/Wake) legen kein weiteres an. Erzwingen lässt es sich mit `--force`.
+- Es werden die letzten `BACKUP_KEEP` Backups aufbewahrt (Default 20), ältere nach
+  dem Upload gelöscht.
+- Das Ergebnis landet im Audit-Log und ist damit auf `/admin` sichtbar
+  (`backup_ok` / `backup_failed` / `backup_skipped`).
+- Die Tabellen werden per Reflection aus der *tatsächlichen* Datenbank gelesen, nicht
+  aus `app/models.py`. Zum Backup-Zeitpunkt gilt noch das alte Schema, und neue
+  Tabellen sind automatisch mit dabei.
+
+Backup manuell erstellen bzw. zurückspielen:
+
+```bash
+python -m app.backup --force            # sofort sichern
+python -m app.restore --list            # vorhandene Backups anzeigen
+python -m app.restore --download <key> -o sicherung.jsonl.gz
+python -m app.restore --from-file sicherung.jsonl.gz --yes
+```
+
+`--from-file` **löscht den aktuellen Inhalt** der im Backup enthaltenen Tabellen und
+ersetzt ihn durch den gesicherten Stand; alles läuft in einer Transaktion, also
+entweder vollständig oder gar nicht. Deshalb ist `--yes` Pflicht. Bei PostgreSQL
+werden die Auto-Increment-Zähler danach automatisch nachgezogen.
 
 ## Entscheidungen zu den offenen Punkten (Konzept Abschnitt 9)
 

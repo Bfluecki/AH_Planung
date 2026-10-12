@@ -41,6 +41,32 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = ""
 
+    # ---- Automatisches Datenbank-Backup vor jedem Deploy (siehe app/backup.py) ----
+    # Ziel ist ein S3-kompatibler Objektspeicher (AWS S3, Backblaze B2, Wasabi,
+    # Cloudflare R2, MinIO). Ohne Bucket/Zugangsdaten wird das Backup uebersprungen,
+    # der Start der App aber nie blockiert.
+    backup_s3_bucket: str = ""
+    backup_s3_access_key_id: str = ""
+    backup_s3_secret_access_key: str = ""
+    # Leer = AWS S3; fuer andere Anbieter deren Endpunkt, z.B.
+    # https://s3.eu-central-003.backblazeb2.com
+    backup_s3_endpoint_url: str = ""
+    backup_s3_region: str = "auto"
+    backup_s3_prefix: str = "ah-planung"
+    # Wie viele Backups aufbewahrt werden; aeltere werden nach dem Upload geloescht.
+    backup_keep: int = 20
+    # True = ein fehlgeschlagenes Backup bricht den Start ab (Deploy schlaegt fehl).
+    # Default False: ein Speicher-Ausfall soll die App nie offline nehmen.
+    backup_required: bool = False
+
+    @property
+    def backup_configured(self) -> bool:
+        return bool(
+            self.backup_s3_bucket
+            and self.backup_s3_access_key_id
+            and self.backup_s3_secret_access_key
+        )
+
     @property
     def bexio_scope_list(self) -> list[str]:
         return [s.strip() for s in self.bexio_scopes.split(",") if s.strip()]
