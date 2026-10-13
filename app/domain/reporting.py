@@ -93,8 +93,10 @@ def build_report(
         .join(Booking, Booking.id == MonthlyAllocation.booking_id)
         .filter(MonthlyAllocation.year == year)
     )
-    if statuses:
-        query = query.filter(Booking.status.in_(statuses))
+    # None = kein Statusfilter; leere Menge = bewusst nichts gewaehlt, also auch
+    # nichts anzeigen (sonst kaeme bei "alle Haken weg" unerwartet alles zurueck).
+    if statuses is not None:
+        query = query.filter(Booking.status.in_(sorted(statuses) or ["\x00"]))
     if search and search.strip():
         term = f"%{search.strip()}%"
         # Auch die Buchungsnummer durchsuchen: der Kalender verlinkt mit ihr auf die

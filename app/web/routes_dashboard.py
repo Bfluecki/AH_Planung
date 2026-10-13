@@ -52,19 +52,35 @@ DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET]
 CALENDAR_DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT]
 
 
+def _gewaehlte_status(status: list[str] | None, filter_aktiv: str, vorgabe: list[str]) -> set[str]:
+    """Welche Status sollen angezeigt werden?
+
+    Ein Formular schickt abgewaehlte Checkboxen gar nicht mit. "Nichts angehakt"
+    waere daher von "Seite zum ersten Mal geoeffnet" nicht zu unterscheiden - das
+    versteckte Feld filter=1 trennt die beiden Faelle. Wer bewusst alles abwaehlt,
+    bekommt eine leere Liste und nicht die Vorgabe zurueck.
+    """
+    if status:
+        return set(status)
+    if filter_aktiv:
+        return set()
+    return set(vorgabe)
+
+
 @router.get("/")
 def dashboard(
     request: Request,
     year: int | None = None,
-    status: list[str] = Query(default=DEFAULT_STATUSES),
+    status: list[str] | None = Query(default=None),
     q: str = "",
+    filter_aktiv: str = Query("", alias="filter"),
     db: Session = Depends(get_db),
     user: User = Depends(require_login),
 ):
     settings = get_settings()
     effective = get_effective_config(db, settings)
     year = year or effective.current_planning_year
-    selected_statuses = set(status) or set(DEFAULT_STATUSES)
+    selected_statuses = _gewaehlte_status(status, filter_aktiv, DEFAULT_STATUSES)
     search = q.strip()
 
     # Status- und Suchfilter wirken auf Jahresuebersicht UND Detailzeilen gleichermassen.
@@ -123,8 +139,9 @@ def save_budget(
 def kalender(
     request: Request,
     year: int | None = None,
-    status: list[str] = Query(default=CALENDAR_DEFAULT_STATUSES),
+    status: list[str] | None = Query(default=None),
     q: str = "",
+    filter_aktiv: str = Query("", alias="filter"),
     db: Session = Depends(get_db),
     user: User = Depends(require_login),
 ):
@@ -132,7 +149,7 @@ def kalender(
     settings = get_settings()
     effective = get_effective_config(db, settings)
     year = year or effective.current_planning_year
-    selected_statuses = set(status) or set(CALENDAR_DEFAULT_STATUSES)
+    selected_statuses = _gewaehlte_status(status, filter_aktiv, CALENDAR_DEFAULT_STATUSES)
     search = q.strip()
 
     wochen = calendar_weeks(db, year, selected_statuses, search=search or None)

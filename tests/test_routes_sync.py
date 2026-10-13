@@ -391,3 +391,52 @@ def test_kalender_zeigt_status_als_zeichen(client):
 
     assert '<span class="kal-symbol" aria-hidden="true">●</span>' in page.text
 
+
+def test_statusauswahl_wirkt_sofort_ohne_anwenden(client):
+    """Ein Haken soll greifen, ohne dass man zusaetzlich "Anwenden" drueckt."""
+    page = client.get("/kalender?year=2026")
+    assert 'form action="/kalender" method="get" class="sidebar-form" data-auto' in page.text
+    assert "feld.form.submit()" in page.text
+    # Der Knopf bleibt als Weg ohne JavaScript bestehen.
+    assert 'class="sidebar-apply"' in page.text
+
+
+def test_alle_haken_entfernt_zeigt_nichts_statt_alles(client):
+    """Wer bewusst alles abwaehlt, darf nicht ploetzlich alles sehen - ohne das
+    versteckte filter=1 waere das von "erstmals geoeffnet" nicht zu unterscheiden."""
+    _kalender_buchung(client, booking_key="AU-300", status="beauftragt")
+
+    mit_auswahl = client.get("/kalender?filter=1&year=2026&status=beauftragt")
+    assert "Musikverein" in mit_auswahl.text
+
+    ohne_auswahl = client.get("/kalender?filter=1&year=2026")
+    assert "Musikverein" not in ohne_auswahl.text
+    assert "Kein Status ausgewählt" in ohne_auswahl.text
+
+    # Ohne filter=1 (Seite erstmals geoeffnet) gilt weiterhin die Voreinstellung.
+    erstaufruf = client.get("/kalender?year=2026")
+    assert "Musikverein" in erstaufruf.text
+
+
+def test_dashboard_verhaelt_sich_bei_leerer_auswahl_gleich(client):
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Booking, MonthlyAllocation
+
+    db = next(client.app.dependency_overrides[get_db]())
+    booking = Booking(booking_key="AU-301", status="beauftragt", kunde="Turnverein",
+                      anlass="Anlass", service_start=dt.date(2026, 3, 4),
+                      service_end=dt.date(2026, 3, 5), umsatz_soll=Decimal("1000"))
+    db.add(booking)
+    db.flush()
+    db.add(MonthlyAllocation(booking_id=booking.id, year=2026, month=3, days=Decimal("2"),
+                             umsatz_soll=Decimal("1000"), umsatz_ist=Decimal("0")))
+    db.commit()
+    db.close()
+
+    assert "Turnverein" in client.get("/?filter=1&year=2026&status=beauftragt").text
+    assert "Turnverein" not in client.get("/?filter=1&year=2026").text
+    assert "Turnverein" in client.get("/?year=2026").text
+

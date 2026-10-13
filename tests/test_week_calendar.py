@@ -163,3 +163,19 @@ def test_jeder_status_hat_ein_eigenes_zeichen(db_session):
     assert eintraege == STATUS_SYMBOLS
     assert len(set(STATUS_SYMBOLS.values())) == 4
 
+
+def test_leere_statusmenge_zeigt_nichts_none_zeigt_alles(db_session):
+    """Unterscheidung, die der Oberflaeche zugrunde liegt: leere Menge = bewusst
+    nichts gewaehlt, None = gar kein Statusfilter."""
+    _booking(db_session, "AU-030", dt.date(2026, 3, 4), dt.date(2026, 3, 5), status="beauftragt")
+    _booking(db_session, "RE-030", dt.date(2026, 3, 4), dt.date(2026, 3, 5), status="verrechnet")
+    db_session.commit()
+
+    leer = calendar_weeks(db_session, 2026, set())
+    assert not any(w.entries for w in leer)
+    # Das Wochenraster bleibt trotzdem stehen, nur ohne Balken.
+    assert len(leer) == len(calendar_weeks(db_session, 2026, None))
+
+    alle = [e for w in calendar_weeks(db_session, 2026, None) for e in w.entries]
+    assert {e.booking_key for e in alle} == {"AU-030", "RE-030"}
+

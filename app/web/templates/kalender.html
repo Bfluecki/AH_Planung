@@ -57,6 +57,9 @@
             </div>
         </div>
 
+        {% if not selected_statuses %}
+        <p class="empty">Kein Status ausgewählt – links mindestens einen anhaken.</p>
+        {% endif %}
         {% for woche in wochen %}
         {% if woche.neuer_monat %}<div class="kal-monat">{{ woche.neuer_monat }}</div>{% endif %}
         <div class="kal-woche {{ 'kal-leer' if woche.is_empty }}">
