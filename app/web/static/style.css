@@ -400,3 +400,18 @@ button.primary:hover { background: var(--color-accent-dark); }
 
 .kal-legende { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; }
 .kal-legende .kal-balken { font-size: 0.75rem; }
+/* Monatstrenner als Orientierung im Jahresraster von gut 52 Wochenzeilen. */
+.kal-monat {
+    font-family: Georgia, serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin: 0.9rem 0 0.1rem;
+    padding-bottom: 0.15rem;
+    border-bottom: 2px solid var(--color-accent);
+}
+.kal-monat:first-of-type { margin-top: 0; }
+/* Leere Wochen bleiben sichtbar (sie zeigen freie Kapazitaet), treten aber zurueck. */
+.kal-woche.kal-leer { min-height: 0; padding: 0.1rem 0; }
+.kal-woche.kal-leer .kal-kw { font-size: 0.75rem; }
+.kal-woche.kal-leer .kal-zelle { min-height: 0.9rem; }

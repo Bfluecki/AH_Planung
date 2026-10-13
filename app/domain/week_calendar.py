@@ -16,6 +16,10 @@ from sqlalchemy.orm import Session
 from app.models import Booking
 
 WEEKDAY_NAMES = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+MONTH_NAMES = [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+]
 
 
 @dataclass
@@ -47,6 +51,9 @@ class CalendarWeek:
     monday: dt.date
     sunday: dt.date
     entries: list[CalendarEntry] = field(default_factory=list)
+    # Monatsname, wenn mit dieser Woche ein neuer Monat beginnt - dient als
+    # Orientierungspunkt im Jahresraster von gut 52 Zeilen.
+    neuer_monat: str | None = None
 
     @property
     def is_empty(self) -> bool:
@@ -88,8 +95,15 @@ def calendar_weeks(
         ]
 
     wochen = []
+    letzter_monat = None
     for monday, sunday in _weeks_of_year(year):
         woche = CalendarWeek(week=monday.isocalendar()[1], monday=monday, sunday=sunday)
+        if monday.month != letzter_monat:
+            name = MONTH_NAMES[monday.month - 1]
+            # KW 1 kann im Vorjahr beginnen - Jahr dazuschreiben, sonst steht ueber
+            # dem Kalender 2026 unvermittelt "Dezember".
+            woche.neuer_monat = name if monday.year == year else f"{name} {monday.year}"
+            letzter_monat = monday.month
         for booking in bookings:
             start, end = booking.service_start, booking.service_end
             if end < monday or start > sunday:

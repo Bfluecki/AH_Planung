@@ -58,6 +58,7 @@
         </div>
 
         {% for woche in wochen %}
+        {% if woche.neuer_monat %}<div class="kal-monat">{{ woche.neuer_monat }}</div>{% endif %}
         <div class="kal-woche {{ 'kal-leer' if woche.is_empty }}">
             <span class="kal-kw" title="{{ woche.monday.strftime('%d.%m.%Y') }} – {{ woche.sunday.strftime('%d.%m.%Y') }}">
                 {{ woche.week }}<small>{{ woche.label }}</small>

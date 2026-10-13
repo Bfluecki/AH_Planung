@@ -121,3 +121,15 @@ def test_unsicherer_zeitraum_wird_durchgereicht(db_session):
     db_session.commit()
     eintraege = [e for w in calendar_weeks(db_session, 2026, {"beauftragt"}) for e in w.entries]
     assert eintraege[0].zeitraum_unsicher is True
+
+
+def test_monatstrenner_markieren_den_monatsbeginn(db_session):
+    wochen = calendar_weeks(db_session, 2026, {"beauftragt"})
+    monate = [w.neuer_monat for w in wochen if w.neuer_monat]
+
+    # Zwoelf Monate plus die angebrochene Vorjahreswoche.
+    assert monate[0] == "Dezember 2025"
+    assert monate[1:] == ["Januar", "Februar", "März", "April", "Mai", "Juni",
+                          "Juli", "August", "September", "Oktober", "November", "Dezember"]
+    # Jeder Monatsname erscheint genau einmal als Trenner.
+    assert len(monate) == len(set(monate))
