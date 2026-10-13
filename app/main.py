@@ -24,6 +24,7 @@ from app.web.routes_admin import router as admin_router
 from app.web.routes_analytics import router as analytics_router
 from app.web.routes_auth import router as auth_router
 from app.web.routes_dashboard import router as dashboard_router
+from app.web.assets import register as register_assets
 
 settings = get_settings()
 logging.basicConfig(level=settings.log_level)
@@ -50,7 +51,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, max_age=60
 static_dir = Path(__file__).parent / "web" / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-_templates = Jinja2Templates(directory=str(Path(__file__).parent / "web" / "templates"))
+_templates = register_assets(Jinja2Templates(directory=str(Path(__file__).parent / "web" / "templates")))
 
 
 @app.exception_handler(StarletteHTTPException)
