@@ -17,6 +17,7 @@
             <a href="/?year={{ year - 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">&larr; {{ year - 1 }}</a>
             <a href="/?year={{ year + 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">{{ year + 1 }} &rarr;</a>
             <a href="/auswertung?year={{ year }}">Auswertung</a>
+            <a href="/angebote/abgelehnt?year={{ year }}">Abgelehnte Angebote</a>
             <a href="/export/{{ year }}.xlsx" class="button">Excel-Export</a>
             <form action="/" method="get" class="search-form">
                 <input type="hidden" name="year" value="{{ year }}">

@@ -124,6 +124,16 @@
         sowohl auf die Jahresübersicht als auch auf die Detailzeilen; mit dem ✕ wird er
         zurückgesetzt. Status- und Jahresauswahl bleiben dabei erhalten.</p>
 
+        <h2>10b. Abgelehnte Angebote</h2>
+        <p>Der Report «Abgelehnte Angebote» (Link im Dashboard) zeigt je Jahr, welche Angebote
+        <strong>nicht</strong> zu einem Auftrag geführt haben, mit entgangenem Umsatz und der in
+        Bexio als <strong>interner Kommentar</strong> erfasster Begründung. Gesucht wird der
+        Kommentar zuerst am Angebot, danach am allenfalls verknüpften Auftrag.</p>
+        <p class="hint">Welcher Bexio-Status «abgelehnt» bedeutet, ist je Mandant anders und wird
+        über die Variable <code>QUOTE_DECLINED_STATUS_IDS</code> eingestellt. Bleibt der Report
+        unerwartet leer, zeigt <code>/admin/debug/angebot-status</code>, welche Status in den
+        eigenen Daten vorkommen.</p>
+
         <h2>11. Anmeldung & Passwort</h2>
         <p>Die Anmeldung erfolgt mit der <strong>E-Mail-Adresse</strong> als Benutzername.
         Neue Benutzer werden vom Admin mit einem <strong>Initialpasswort</strong> angelegt und
