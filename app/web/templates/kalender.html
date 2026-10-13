@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kalender {{ year }} – Aarbergerhus</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <h1>Aarbergerhus</h1>
+            <span class="brand-sub">Belegungskalender</span>
+            <span class="year-badge">{{ year }}</span>
+        </div>
+        <nav>
+            <a href="/hilfe">Hilfe</a>
+            {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+            <a href="/passwort">Passwort</a>
+            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
+        </nav>
+    </header>
+
+    <div class="layout">
+    {% with aktiv = "kalender", ziel_url = "/kalender" %}{% include "_seitenleiste.html" %}{% endwith %}
+    <div class="content">
+
+    <section>
+        <div class="kpi-grid">
+            <div class="kpi">
+                <div class="kpi-label">Anlässe {{ year }}</div>
+                <div class="kpi-value">{{ zahlen.anlaesse }}</div>
+                <div class="kpi-sub">in {{ zahlen.belegte_wochen }} belegten Wochen</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Umsatz Soll</div>
+                <div class="kpi-value">{{ zahlen.umsatz_soll|swissnum }}</div>
+                <div class="kpi-sub">der angezeigten Anlässe</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Legende</div>
+                <div class="kal-legende">
+                    {% for s in all_statuses if s in selected_statuses %}
+                    <span class="kal-balken kal-{{ s }}">{{ s }} ({{ zahlen.je_status.get(s, 0) }})</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Wochenübersicht</h2>
+        <div class="kal-kopf">
+            <span class="kal-kw">KW</span>
+            <div class="kal-tage">
+                {% for tag in weekday_names %}<span>{{ tag }}</span>{% endfor %}
+            </div>
+        </div>
+
+        {% for woche in wochen %}
+        {% if woche.neuer_monat %}<div class="kal-monat">{{ woche.neuer_monat }}</div>{% endif %}
+        <div class="kal-woche {{ 'kal-leer' if woche.is_empty }}">
+            <span class="kal-kw" title="{{ woche.monday.strftime('%d.%m.%Y') }} – {{ woche.sunday.strftime('%d.%m.%Y') }}">
+                {{ woche.week }}<small>{{ woche.label }}</small>
+            </span>
+            <div class="kal-tage kal-raster">
+                {% for i in range(7) %}<span class="kal-zelle"></span>{% endfor %}
+                {% for e in woche.entries %}
+                <a class="kal-balken kal-{{ e.status }}{{ ' kal-vorher' if e.laeuft_vorher }}{{ ' kal-nachher' if e.laeuft_nachher }}"
+                   style="grid-column: {{ e.start_column }} / span {{ e.span }};"
+                   href="/?year={{ year }}&q={{ e.booking_key|urlencode }}"
+                   title="{{ e.kunde }} – {{ e.anlass }}&#10;{{ e.service_start.strftime('%d.%m.%Y') }} bis {{ e.service_end.strftime('%d.%m.%Y') }}&#10;{{ e.status }} · Umsatz Soll {{ e.umsatz_soll|swissnum }}">
+                    {% if e.laeuft_vorher %}‹{% endif %}{{ e.kunde or e.anlass }}{% if e.zeitraum_unsicher %} ⚠{% endif %}{% if e.laeuft_nachher %}›{% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+    </div>
+    </div>
+</body>
+</html>

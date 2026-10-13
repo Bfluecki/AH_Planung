@@ -17,6 +17,7 @@ from app.budget import save_budget_override
 from app.config import get_settings
 from app.db import get_db
 from app.domain.reporting import build_report
+from app.domain.week_calendar import WEEKDAY_NAMES, calendar_summary, calendar_weeks
 from app.domain.soll_ist import (
     STATUS_BEAUFTRAGT,
     STATUS_NUR_ANGEBOT,
@@ -40,6 +41,9 @@ MONTH_NAMES_DE = [
 # Verrechnetes. Nur Storniertes ist ausgeblendet und per Dropdown zuschaltbar.
 ALL_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET, STATUS_STORNIERT]
 DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET]
+# Der Kalender ist ein Planungsinstrument: er zeigt von Haus aus, was noch
+# ansteht. Verrechnetes (= Vergangenheit) ist ueber den Filter zuschaltbar.
+CALENDAR_DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT]
 
 
 @router.get("/")
@@ -72,6 +76,7 @@ def dashboard(
             "month_names": MONTH_NAMES_DE,
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,
+            "default_statuses": set(DEFAULT_STATUSES),
             "search": search,
             "current_user": user.username,
             "is_admin": user.role == ROLE_ADMIN,
@@ -106,3 +111,38 @@ def save_budget(
     if q.strip():
         params.append(("q", q.strip()))
     return RedirectResponse(url=f"/?{urlencode(params)}", status_code=303)
+
+
+@router.get("/kalender")
+def kalender(
+    request: Request,
+    year: int | None = None,
+    status: list[str] = Query(default=CALENDAR_DEFAULT_STATUSES),
+    q: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(require_login),
+):
+    """Belegungsplanung als Wochenkalender - Anlaesse farblich nach Status."""
+    settings = get_settings()
+    effective = get_effective_config(db, settings)
+    year = year or effective.current_planning_year
+    selected_statuses = set(status) or set(CALENDAR_DEFAULT_STATUSES)
+    search = q.strip()
+
+    wochen = calendar_weeks(db, year, selected_statuses, search=search or None)
+    return templates.TemplateResponse(
+        "kalender.html",
+        {
+            "request": request,
+            "year": year,
+            "wochen": wochen,
+            "zahlen": calendar_summary(wochen),
+            "weekday_names": WEEKDAY_NAMES,
+            "all_statuses": ALL_STATUSES,
+            "selected_statuses": selected_statuses,
+            "default_statuses": set(CALENDAR_DEFAULT_STATUSES),
+            "search": search,
+            "current_user": user.username,
+            "is_admin": user.role == ROLE_ADMIN,
+        },
+    )

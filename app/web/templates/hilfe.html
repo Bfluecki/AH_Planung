@@ -68,7 +68,10 @@
         einem roten <span class="zeitraum-unsicher">⚠</span> hinter dem Zeitraum markiert (im
         Excel-Export mit «(?)»). Sie zählen zum Monat des Auftrags und können deshalb im falschen
         Monat oder sogar im falschen Jahr stehen. Abhilfe: im Bexio-Beleg den Anlasstermin in den
-        Titel schreiben (z.&nbsp;B. «Vereinsanlass vom 21. bis 23. Mai 2027») und neu synchronisieren.</div>
+        Titel schreiben und neu synchronisieren.</div>
+        <p class="hint">Erkannt werden unter anderem: «vom 21. bis 23. Mai 2027», «du 25 au 28 mai 2026»,
+        «06./07. März 2027», «25.06.–03.07.2026», «03.09.27-05.09.27» und einzelne Daten wie
+        «25.07.2026». Jahreszahlen dürfen zwei- oder vierstellig sein – «27» wird als 2027 gelesen.</p>
 
         <h2>4. Übernachtungen, Tage und PAX-Nächte</h2>
         <table>
@@ -118,13 +121,43 @@
         Aufträge ohne Rechnung), die <strong>Prognose-Genauigkeit im Zeitverlauf</strong> sowie die
         <strong>kumulierte Zielerreichung</strong> (liegt das Jahr per Stichtag vor oder hinter Budget?).</p>
 
-        <h2>10. Suche</h2>
-        <p>Das Suchfeld oben (<em>«Kunde oder Anlass suchen …»</em>) filtert die Ansicht nach
-        einem Teil des Kunden- oder Anlassnamens (Gross-/Kleinschreibung egal). Der Filter wirkt
-        sowohl auf die Jahresübersicht als auch auf die Detailzeilen; mit dem ✕ wird er
-        zurückgesetzt. Status- und Jahresauswahl bleiben dabei erhalten.</p>
+        <h2>10. Bedienung: die Auswahl links</h2>
+        <p>Dashboard und Kalender teilen sich dieselbe <strong>Auswahlleiste am linken Rand</strong>.
+        Oben die Navigation (Dashboard, Kalender, Auswertung, Abgelehnte Angebote), darunter drei
+        Einstellungen, die zusammen gelten:</p>
+        <table>
+            <tr><td><strong>Planjahr</strong></td><td>mit ‹ und › ein Jahr zurück oder vor.</td></tr>
+            <tr><td><strong>Suche</strong></td><td>filtert nach einem Teil des Kunden- oder
+            Anlassnamens (Gross-/Kleinschreibung egal).</td></tr>
+            <tr><td><strong>Status</strong></td><td>welche Buchungen erscheinen. Im Dashboard sind
+            <em>nur_angebot</em>, <em>beauftragt</em> und <em>verrechnet</em> voreingestellt, im
+            Kalender nur <em>nur_angebot</em> und <em>beauftragt</em>.</td></tr>
+        </table>
+        <p>Änderungen werden mit <strong>«Anwenden»</strong> übernommen und wirken auf alle Teile der
+        Seite gleichzeitig; <strong>«Zurücksetzen»</strong> stellt die Voreinstellung wieder her. Die
+        Auswahl steht in der Adresszeile – eine gefilterte Ansicht lässt sich also als Lesezeichen
+        speichern oder per Link weitergeben.</p>
 
-        <h2>10b. Abgelehnte Angebote</h2>
+        <h2>10b. Belegungskalender (Wochenansicht)</h2>
+        <p>Der <strong>Kalender</strong> zeigt dasselbe Jahr als Belegungsplan: eine Zeile je
+        Kalenderwoche, sieben Spalten von Montag bis Sonntag. Jeder Anlass erscheint als Balken über
+        genau die Tage, an denen er stattfindet – Grundlage ist der <strong>Leistungszeitraum</strong>,
+        nicht das Belegdatum. Wochenenden sind leicht dunkler hinterlegt.</p>
+        <table>
+            <tr><td><span class="kal-balken kal-nur_angebot">nur_angebot</span></td><td>angefragt, noch nicht beauftragt</td></tr>
+            <tr><td><span class="kal-balken kal-beauftragt">beauftragt</span></td><td>fest gebucht – das Rückgrat der Planung</td></tr>
+            <tr><td><span class="kal-balken kal-verrechnet">verrechnet</span></td><td>bereits abgerechnet (Vergangenheit)</td></tr>
+            <tr><td><span class="kal-balken kal-storniert">storniert</span></td><td>abgesagt</td></tr>
+        </table>
+        <p>Voreingestellt sind <em>nur_angebot</em> und <em>beauftragt</em> – der Kalender ist ein
+        Planungsinstrument und zeigt zuerst, was noch ansteht. <em>verrechnet</em> lässt sich links
+        zuschalten, um zu sehen, wie die Planung in der Vergangenheit aussah.</p>
+        <p>Ein Anlass über mehrere Wochen erscheint in jeder betroffenen Woche; an der Schnittstelle
+        steht ein ‹ bzw. ›, die Kante ist dort gestrichelt. Ein Klick auf einen Balken öffnet die
+        zugehörige Zeile im Dashboard. Ein <span class="zeitraum-unsicher">⚠</span> im Balken bedeutet
+        denselben unsicheren Zeitraum wie im Dashboard (siehe Abschnitt 3).</p>
+
+        <h2>10c. Abgelehnte Angebote</h2>
         <p>Der Report «Abgelehnte Angebote» (Link im Dashboard) zeigt je Jahr, welche Angebote
         <strong>nicht</strong> zu einem Auftrag geführt haben, mit entgangenem Umsatz und der in
         Bexio als <strong>interner Kommentar</strong> erfasster Begründung. Gesucht wird der

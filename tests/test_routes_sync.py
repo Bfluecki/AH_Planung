@@ -219,9 +219,11 @@ def test_status_filter_zeigt_standardmaessig_alles_ausser_storniert(client):
     assert "storniert" in ALL_STATUSES and "storniert" not in DEFAULT_STATUSES
 
     page = client.get("/?year=2026")
-    # Drei der vier Checkboxen sind vorausgewaehlt.
+    # Alle vier Status stehen in der Seitenleiste zur Wahl, drei sind angehakt.
     assert page.text.count('type="checkbox" name="status"') == 4
-    assert "Status-Filter (3)" in page.text
+    assert page.text.count('value="storniert" checked') == 0
+    for status in DEFAULT_STATUSES:
+        assert f'value="{status}" checked' in page.text
 
 
 def test_report_abgelehnte_angebote_wird_gerendert(client):
@@ -253,3 +255,54 @@ def test_report_erklaert_leeres_ergebnis(client):
     page = client.get("/angebote/abgelehnt?year=2026")
     assert "Keine abgelehnten Angebote" in page.text
     assert "/admin/debug/angebot-status" in page.text
+
+
+def _kalender_buchung(client, **kwargs):
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Booking
+
+    felder = dict(booking_key="AU-100", status="beauftragt", kunde="Musikverein",
+                  anlass="Probewochenende", service_start=dt.date(2026, 3, 4),
+                  service_end=dt.date(2026, 3, 6), umsatz_soll=Decimal("4000"),
+                  service_period_source="title")
+    felder.update(kwargs)
+    db = next(client.app.dependency_overrides[get_db]())
+    db.add(Booking(**felder))
+    db.commit()
+    db.close()
+
+
+def test_kalender_zeigt_anlass_farblich_nach_status(client):
+    _kalender_buchung(client)
+
+    page = client.get("/kalender?year=2026")
+
+    assert page.status_code == 200
+    assert "Musikverein" in page.text
+    # Statusfarbe und Position im Wochenraster (Mi = Spalte 3, drei Tage).
+    assert "kal-beauftragt" in page.text
+    assert "grid-column: 3 / span 3" in page.text
+
+
+def test_kalender_zeigt_standardmaessig_keine_verrechneten(client):
+    _kalender_buchung(client, booking_key="RE-100", status="verrechnet", kunde="Turnverein")
+
+    standard = client.get("/kalender?year=2026")
+    assert "Turnverein" not in standard.text
+
+    # Verrechnetes ist zuschaltbar, um die Planung der Vergangenheit zu sehen.
+    mit_vergangenheit = client.get("/kalender?year=2026&status=beauftragt&status=verrechnet")
+    assert "Turnverein" in mit_vergangenheit.text
+    assert "kal-verrechnet" in mit_vergangenheit.text
+
+
+def test_seitenleiste_erscheint_auf_dashboard_und_kalender(client):
+    for url, aktiv in (("/?year=2026", "Dashboard"), ("/kalender?year=2026", "Kalender")):
+        page = client.get(url)
+        assert 'class="sidebar"' in page.text
+        assert 'href="/kalender?year=2026"' in page.text
+        # Die aktive Seite ist in der Navigation hervorgehoben.
+        assert f'aktiv">{aktiv}</a>' in page.text

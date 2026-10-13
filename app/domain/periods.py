@@ -61,10 +61,15 @@ _FR_RANGE_CROSS_MONTH_RE = re.compile(
     rf"du\s+(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+au\s+(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
     re.IGNORECASE,
 )
-# Rein numerisch: "25.-28.05.2026" oder "25.06.-03.07.2026" oder "25.06.2026-03.07.2026"
+# Rein numerisch: "25.-28.05.2026", "25.06.-03.07.2026", "25.06.2026-03.07.2026"
+# und - in echten Bexio-Titeln haeufig - mit zweistelliger Jahreszahl:
+# "03.09.27-05.09.27" oder "19.02.27 - 21.02.27".
+_YEAR = r"(?:\d{4}|\d{2})"
 _NUMERIC_RANGE_RE = re.compile(
-    r"(\d{1,2})\.(?:(\d{1,2})\.)?(?:(\d{4})\.?)?\s*[-–]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})"
+    rf"(\d{{1,2}})\.(?:(\d{{1,2}})\.)?({_YEAR})?\.?\s*[-–/]\s*(\d{{1,2}})\.(\d{{1,2}})\.({_YEAR})"
 )
+# Einzelnes numerisches Datum: "Sitzung 25.07.2026" oder "Anlass 05.09.27"
+_NUMERIC_SINGLE_DATE_RE = re.compile(rf"(\d{{1,2}})\.(\d{{1,2}})\.({_YEAR})")
 # Einzelnes Datum ohne Bereich: "Team Meeting 03. November 2026"
 _DE_SINGLE_DATE_RE = re.compile(
     rf"(?:vom\s+|am\s+)?(\d{{1,2}})\.?\s*({_MONTH_NAMES_PATTERN})\s+(\d{{4}})",
@@ -81,22 +86,30 @@ def _month_num(name: str) -> int:
     return _MONTHS[name.lower()]
 
 
+def _year_num(value: str) -> int:
+    """Zweistellige Jahreszahlen als 20xx lesen - Belegtitel schreiben "27" fuer 2027."""
+    year = int(value)
+    return year + 2000 if year < 100 else year
+
+
 def extract_service_period(
     title: str, fallback_date: dt.date | None = None
 ) -> tuple[dt.date | None, dt.date | None]:
     """Gibt (service_start, service_end) zurueck, best-effort aus dem Titel geparst.
 
     Reihenfolge nach Praezision: numerischer Bereich > Bereich mit zwei Monatsnamen >
-    Bereich mit einem Monatsnamen > Einzeldatum > nur Monat/Jahr (ganzer Monat) >
-    Dokumentdatum als letzter Fallback."""
+    Bereich mit einem Monatsnamen > Einzeldatum mit Monatsnamen > numerisches
+    Einzeldatum > nur Monat/Jahr (ganzer Monat) > Dokumentdatum als letzter Fallback.
+
+    Jahreszahlen duerfen zwei- oder vierstellig sein; "27" wird als 2027 gelesen."""
     if title:
         m = _NUMERIC_RANGE_RE.search(title)
         if m:
             d1, mon1, year1, d2, mon2, year2 = m.groups()
             try:
-                end = dt.date(int(year2), int(mon2), int(d2))
+                end = dt.date(_year_num(year2), int(mon2), int(d2))
                 start_month = int(mon1) if mon1 else int(mon2)
-                start_year = int(year1) if year1 else int(year2)
+                start_year = _year_num(year1) if year1 else end.year
                 start = dt.date(start_year, start_month, int(d1))
                 return start, end
             except ValueError:
@@ -130,6 +143,15 @@ def extract_service_period(
             d, mon, year = m.groups()
             try:
                 single = dt.date(int(year), _month_num(mon), int(d))
+                return single, single
+            except ValueError:
+                pass
+
+        m = _NUMERIC_SINGLE_DATE_RE.search(title)
+        if m:
+            d, mon, year = m.groups()
+            try:
+                single = dt.date(_year_num(year), int(mon), int(d))
                 return single, single
             except ValueError:
                 pass
