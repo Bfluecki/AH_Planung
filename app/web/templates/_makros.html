@@ -1,0 +1,20 @@
+{# Wiederverwendbare Bausteine der Oberflaeche. #}
+
+{# Warnzeichen mit Erklaerung: erscheint, wenn der Leistungszeitraum nur vom
+   Dokumentdatum abgeleitet ist. Oeffnet bei Hover und bei Tastatur-/Tipp-Fokus -
+   Letzteres, damit der Hinweis auch auf Mobilgeraeten erreichbar ist. #}
+{% macro zeitraum_hinweis() %}
+<span class="hinweis">
+    <button type="button" class="hinweis-icon" aria-label="Warum ist dieser Zeitraum unsicher?">⚠</button>
+    <span class="hinweis-text" role="tooltip">
+        <strong>Zeitraum unsicher</strong>
+        Im Belegtitel steht kein Anlassdatum, deshalb gilt ersatzweise das
+        Dokumentdatum – bei beauftragten Anlässen das Auftragsdatum. Die Zeile kann
+        darum im falschen Monat oder sogar im falschen Jahr stehen.
+        <em>Abhilfe: in Bexio den Termin in den Titel schreiben und neu
+        synchronisieren – ein Termin im Titel genügt.</em>
+        <span class="hinweis-beispiel">z.&nbsp;B. «Vereinsanlass vom 21.–23. Mai 2027»
+        oder «Kurs 03.09.27-05.09.27»</span>
+    </span>
+</span>
+{% endmacro %}

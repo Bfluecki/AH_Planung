@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% import "_makros.html" as makros %}<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -66,12 +66,14 @@
             <div class="kal-tage kal-raster">
                 {% for i in range(7) %}<span class="kal-zelle"></span>{% endfor %}
                 {% for e in woche.entries %}
-                <a class="kal-balken kal-{{ e.status }}{{ ' kal-vorher' if e.laeuft_vorher }}{{ ' kal-nachher' if e.laeuft_nachher }}"
-                   style="grid-column: {{ e.start_column }} / span {{ e.span }};"
-                   href="/?year={{ year }}&q={{ e.booking_key|urlencode }}"
-                   title="{{ e.kunde }} – {{ e.anlass }}&#10;{{ e.service_start.strftime('%d.%m.%Y') }} bis {{ e.service_end.strftime('%d.%m.%Y') }}&#10;{{ e.status }} · Umsatz Soll {{ e.umsatz_soll|swissnum }}">
-                    {% if e.laeuft_vorher %}‹{% endif %}{{ e.kunde or e.anlass }}{% if e.zeitraum_unsicher %} ⚠{% endif %}{% if e.laeuft_nachher %}›{% endif %}
-                </a>
+                <span class="kal-eintrag" style="grid-column: {{ e.start_column }} / span {{ e.span }};">
+                    <a class="kal-balken kal-{{ e.status }}{{ ' kal-vorher' if e.laeuft_vorher }}{{ ' kal-nachher' if e.laeuft_nachher }}"
+                       href="/?year={{ year }}&q={{ e.booking_key|urlencode }}"
+                       title="{{ e.kunde }} – {{ e.anlass }}&#10;{{ e.service_start.strftime('%d.%m.%Y') }} bis {{ e.service_end.strftime('%d.%m.%Y') }}&#10;{{ e.status }} · Umsatz Soll {{ e.umsatz_soll|swissnum }}">
+                        {% if e.laeuft_vorher %}‹{% endif %}{{ e.kunde or e.anlass }}{% if e.laeuft_nachher %}›{% endif %}
+                    </a>
+                    {% if e.zeitraum_unsicher %}{{ makros.zeitraum_hinweis() }}{% endif %}
+                </span>
                 {% endfor %}
             </div>
         </div>
