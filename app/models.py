@@ -245,6 +245,12 @@ class LineItem(Base):
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+# Herkunft des Leistungszeitraums (siehe Booking.service_period_source)
+PERIOD_SOURCE_TITLE = "title"
+PERIOD_SOURCE_DOCUMENT_DATE = "document_date"
+PERIOD_SOURCE_NONE = "none"
+
+
 class Booking(Base):
     """Abgeleitete, verkettete Buchung - eine Zeile in der Detailplanung (Konzept Abschnitt 5).
 
@@ -274,6 +280,17 @@ class Booking(Base):
 
     service_start: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     service_end: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+
+    # Woher stammt der Leistungszeitraum? "title" = aus dem Belegtitel geparst (der
+    # Anlasstermin selbst), "document_date" = im Titel stand kein Datum, deshalb
+    # Dokumentdatum als Notbehelf (bei "beauftragt" also das Auftragsdatum - die
+    # Buchung liegt dann moeglicherweise im falschen Planjahr), "none" = kein Datum.
+    service_period_source: Mapped[str] = mapped_column(String, default=PERIOD_SOURCE_NONE)
+
+    @property
+    def zeitraum_unsicher(self) -> bool:
+        """True, wenn der Zeitraum nur vom Dokumentdatum abgeleitet ist."""
+        return self.service_period_source == PERIOD_SOURCE_DOCUMENT_DATE
 
     invoice_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     payment_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)

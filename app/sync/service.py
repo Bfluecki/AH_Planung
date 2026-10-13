@@ -32,6 +32,9 @@ from app.matching.chain import (
     build_booking_chains,
 )
 from app.models import (
+    PERIOD_SOURCE_DOCUMENT_DATE,
+    PERIOD_SOURCE_NONE,
+    PERIOD_SOURCE_TITLE,
     Booking,
     Contact,
     CreditNote,
@@ -472,7 +475,17 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
         doc_date = (order_row.order_date if order_row else None) or (
             invoice_row.invoice_date if invoice_row else None
         ) or (quote_row.quote_date if quote_row else None)
-        service_start, service_end = extract_service_period(title, doc_date)
+        # Erst ohne Notbehelf parsen: gelingt das, steht der Anlasstermin im Titel.
+        # Sonst greift das Dokumentdatum - der Zeitraum ist dann nur geraten und die
+        # Buchung liegt moeglicherweise im falschen Planjahr (deshalb markiert).
+        service_start, service_end = extract_service_period(title, None)
+        if service_start is not None:
+            period_source = PERIOD_SOURCE_TITLE
+        else:
+            service_start, service_end = extract_service_period(title, doc_date)
+            period_source = (
+                PERIOD_SOURCE_DOCUMENT_DATE if service_start is not None else PERIOD_SOURCE_NONE
+            )
         physical_nights = (
             nights_between(service_start, service_end) if service_start and service_end else None
         )
@@ -529,6 +542,7 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
         booking.status = booking_metrics.status
         booking.service_start = service_start
         booking.service_end = service_end
+        booking.service_period_source = period_source
         booking.invoice_date = invoice_row.invoice_date if invoice_row else None
         booking.payment_date = invoice_row.payment_date if invoice_row else None
         booking.pax_soll = booking_metrics.pax_soll

@@ -153,3 +153,30 @@ def test_api_post_without_redirect_still_returns_json(client, monkeypatch):
     response = client.post("/sync/run")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "stats": STATS}
+
+
+def test_dashboard_markiert_unsicheren_zeitraum(client):
+    """Die Warnung muss im gerenderten Dashboard ankommen, nicht nur im Datenmodell."""
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Booking, MonthlyAllocation
+
+    db = next(client.app.dependency_overrides[get_db]())
+    booking = Booking(
+        booking_key="AU-002", status="beauftragt", kunde="Musikgesellschaft",
+        anlass="Vereinsanlass", service_start=dt.date(2026, 3, 11),
+        service_end=dt.date(2026, 3, 11), service_period_source="document_date",
+        umsatz_soll=Decimal("2000"),
+    )
+    db.add(booking)
+    db.flush()
+    db.add(MonthlyAllocation(booking_id=booking.id, year=2026, month=3, days=Decimal("1"),
+                             umsatz_soll=Decimal("2000"), umsatz_ist=Decimal("0")))
+    db.commit()
+    db.close()
+
+    page = client.get("/?year=2026&status=beauftragt")
+    assert "zeitraum-unsicher" in page.text
+    assert "kein Anlassdatum" in page.text

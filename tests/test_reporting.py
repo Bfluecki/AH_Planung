@@ -97,3 +97,27 @@ def test_search_filters_by_kunde_or_anlass_case_insensitive(db_session):
     mai = next(m for m in year_summary.months if m.month == 5)
     assert mai.umsatz_soll == Decimal("0")
     assert rows_by_month[5] == []
+
+
+def test_report_row_traegt_unsicheren_zeitraum_weiter(db_session):
+    """Die Markierung muss bis in die Detailzeile durchschlagen, sonst sieht man im
+    Dashboard nicht, welchen Monatswerten man nicht trauen kann."""
+    from app.models import PERIOD_SOURCE_DOCUMENT_DATE, PERIOD_SOURCE_TITLE
+
+    _add_booking_with_allocation(db_session, "AU-001", "beauftragt", Decimal("1000"), month=3)
+    _add_booking_with_allocation(db_session, "AU-002", "beauftragt", Decimal("2000"), month=3)
+    db_session.query(Booking).filter_by(booking_key="AU-001").one().service_period_source = (
+        PERIOD_SOURCE_TITLE
+    )
+    db_session.query(Booking).filter_by(booking_key="AU-002").one().service_period_source = (
+        PERIOD_SOURCE_DOCUMENT_DATE
+    )
+    db_session.commit()
+
+    _, rows_by_month = build_report(db_session, 2026, statuses={"beauftragt"})
+    rows = {r.booking_key: r for r in rows_by_month[3]}
+
+    assert rows["AU-001"].zeitraum_unsicher is False
+    assert rows["AU-002"].zeitraum_unsicher is True
+    # Die Zahlen selbst bleiben unangetastet.
+    assert rows["AU-002"].umsatz_soll == Decimal("2000")
