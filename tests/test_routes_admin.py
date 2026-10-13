@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.auth import ROLE_ADMIN, create_user
 from app.config import get_settings
 from app.db import Base, get_db
-from app.models import Booking, Invoice, LineItem, MonthlyAllocation
+from app.models import Booking, Invoice, LineItem, MonthlyAllocation, Order
 
 
 @pytest.fixture
@@ -299,3 +299,38 @@ def test_analytics_page_loads(client):
     resp = test_client.get("/auswertung?year=2026")
     assert resp.status_code == 200
     assert "Jahresvergleich" in resp.text
+
+
+def test_zeitraum_herkunft_trennt_titel_von_dokumentdatum(client):
+    """Buchungen, deren Zeitraum nur aus dem Dokumentdatum stammt, muessen erkennbar
+    sein - sie landen sonst im Planjahr des Auftrags statt in dem des Anlasses."""
+    test_client, TestSession = client
+    db = TestSession()
+    db.add(Order(id=1, document_nr="AU-001", order_date=dt.date(2026, 3, 10),
+                 raw={"date": "2026-03-10", "is_valid_from": "2027-05-21", "title": "x"}))
+    # Titel mit Datum -> Zeitraum stammt aus dem Titel.
+    db.add(Booking(booking_key="AU-002", status="beauftragt", kunde="Verein",
+                   anlass="Vereinsanlass vom 21. bis 23. Mai 2027",
+                   service_start=dt.date(2027, 5, 21), service_end=dt.date(2027, 5, 23)))
+    # Titel ohne Datum -> Zeitraum ist das Auftragsdatum.
+    db.add(Booking(booking_key="AU-001", order_id=1, status="beauftragt", kunde="Musikgesellschaft",
+                   anlass="Probewochenende", service_start=dt.date(2026, 3, 10),
+                   service_end=dt.date(2026, 3, 10)))
+    db.commit()
+    db.close()
+
+    body = test_client.get("/admin/debug/zeitraum-herkunft").json()
+
+    assert body["buchungen_gesamt"] == 2
+    assert body["zeitraum_aus_titel"] == 1
+    assert body["zeitraum_nur_aus_dokumentdatum"] == 1
+    assert body["anteil_betroffen_pct"] == 50.0
+
+    betroffen = body["betroffene_buchungen"][0]
+    assert betroffen["booking_key"] == "AU-001"
+    assert betroffen["anlass"] == "Probewochenende"
+    assert betroffen["auftragsdatum"] == "2026-03-10"
+    # Datumsaehnliche Bexio-Rohfelder werden mitgeliefert, damit erkennbar wird, ob
+    # das echte Anlassdatum strukturiert vorliegt.
+    assert betroffen["bexio_rohfelder_mit_datum"]["is_valid_from"] == "2027-05-21"
+    assert "title" not in betroffen["bexio_rohfelder_mit_datum"]
