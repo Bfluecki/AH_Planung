@@ -180,3 +180,45 @@ def test_dashboard_markiert_unsicheren_zeitraum(client):
     page = client.get("/?year=2026&status=beauftragt")
     assert "zeitraum-unsicher" in page.text
     assert "kein Anlassdatum" in page.text
+
+
+def test_monatszeile_zeigt_umsatz_soll_und_ist(client):
+    """Planungswerkzeug: in der Monatszeile muss der geplante Umsatz (Soll, aus dem
+    Auftrag) stehen, nicht nur der bereits verrechnete."""
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Booking, MonthlyAllocation
+
+    db = next(client.app.dependency_overrides[get_db]())
+    booking = Booking(
+        booking_key="AU-010", status="beauftragt", kunde="Verein", anlass="Anlass",
+        service_start=dt.date(2026, 4, 1), service_end=dt.date(2026, 4, 2),
+        umsatz_soll=Decimal("5000"), umsatz_ist=Decimal("0"),
+    )
+    db.add(booking)
+    db.flush()
+    db.add(MonthlyAllocation(booking_id=booking.id, year=2026, month=4, days=Decimal("2"),
+                             umsatz_soll=Decimal("5000"), umsatz_ist=Decimal("0")))
+    db.commit()
+    db.close()
+
+    page = client.get("/?year=2026&status=beauftragt")
+    # Das Schweizer Tausender-Apostroph erscheint im HTML als &#39;.
+    assert "Umsatz Soll 5&#39;000.00" in page.text
+    assert "Umsatz Ist 0.00" in page.text
+
+
+def test_status_filter_zeigt_standardmaessig_alles_ausser_storniert(client):
+    """Planungswerkzeug: ohne Zutun sollen Angebote, Auftraege und Verrechnetes
+    sichtbar sein - nur Storniertes bleibt ausgeblendet."""
+    from app.web.routes_dashboard import ALL_STATUSES, DEFAULT_STATUSES
+
+    assert DEFAULT_STATUSES == ["nur_angebot", "beauftragt", "verrechnet"]
+    assert "storniert" in ALL_STATUSES and "storniert" not in DEFAULT_STATUSES
+
+    page = client.get("/?year=2026")
+    # Drei der vier Checkboxen sind vorausgewaehlt.
+    assert page.text.count('type="checkbox" name="status"') == 4
+    assert "Status-Filter (3)" in page.text

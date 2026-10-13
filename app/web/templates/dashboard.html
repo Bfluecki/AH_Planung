@@ -124,6 +124,7 @@
                 <span>{{ month_names[month - 1] }}</span>
                 <span class="month-meta">
                     {{ rows|length }} Buchung(en) ·
+                    Umsatz Soll {{ (rows|sum(attribute='umsatz_soll'))|swissnum }} ·
                     Umsatz Ist {{ (rows|sum(attribute='umsatz_ist'))|swissnum }}
                 </span>
             </summary>
