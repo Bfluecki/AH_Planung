@@ -26,9 +26,10 @@ from app.domain.soll_ist import (
 )
 from app.web.flash import pop_flash
 from app.web.formatting import swissnum
+from app.web.assets import register as register_assets
 
 router = APIRouter(tags=["dashboard"])
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates = register_assets(Jinja2Templates(directory=str(Path(__file__).parent / "templates")))
 templates.env.filters["swissnum"] = swissnum
 
 MONTH_NAMES_DE = [

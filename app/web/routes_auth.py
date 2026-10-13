@@ -12,9 +12,10 @@ from app import auth
 from app.audit import log_action
 from app.auth import User, require_login
 from app.db import get_db
+from app.web.assets import register as register_assets
 
 router = APIRouter(tags=["auth"])
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates = register_assets(Jinja2Templates(directory=str(Path(__file__).parent / "templates")))
 
 # Mindestlaenge fuer selbst vergebene Passwoerter.
 _MIN_PASSWORD_LEN = 8

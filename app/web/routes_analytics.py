@@ -27,9 +27,10 @@ from app.domain.analytics import (
     year_figures,
 )
 from app.web.formatting import swissnum
+from app.web.assets import register as register_assets
 
 router = APIRouter(tags=["analytics"])
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates = register_assets(Jinja2Templates(directory=str(Path(__file__).parent / "templates")))
 templates.env.filters["swissnum"] = swissnum
 
 MONTH_ABBR = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
