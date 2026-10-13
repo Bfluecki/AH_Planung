@@ -569,3 +569,6 @@ td:nth-last-child(-n+4) .hinweis-text { left: auto; right: 0; }
 .kal-eintrag { display: flex; align-items: center; gap: 0.15rem; min-width: 0; }
 .kal-eintrag .kal-balken { flex: 1; min-width: 0; }
 .kal-eintrag .hinweis-icon { font-size: 0.8rem; }
+/* Statuszeichen im Balken - traegt die Information auch dort, wo Farbe versagt:
+   schmale Balken, Ausdruck, Farbsehschwaeche. */
+.kal-symbol { margin-right: 0.35rem; font-size: 0.95em; }

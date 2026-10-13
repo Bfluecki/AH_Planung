@@ -41,7 +41,7 @@
                 <div class="kpi-label">Legende</div>
                 <div class="kal-legende">
                     {% for s in all_statuses if s in selected_statuses %}
-                    <span class="kal-balken kal-{{ s }}">{{ s }} ({{ zahlen.je_status.get(s, 0) }})</span>
+                    <span class="kal-balken kal-{{ s }}"><span class="kal-symbol">{{ status_symbols.get(s, '·') }}</span>{{ s }} ({{ zahlen.je_status.get(s, 0) }})</span>
                     {% endfor %}
                 </div>
             </div>
@@ -67,10 +67,13 @@
                 {% for i in range(7) %}<span class="kal-zelle"></span>{% endfor %}
                 {% for e in woche.entries %}
                 <span class="kal-eintrag" style="grid-column: {{ e.start_column }} / span {{ e.span }};">
+                    {# Der Link traegt Jahr, Status und Buchungsnummer der Zeile und
+                       springt auf den Monat - sonst landet man auf einem Dashboard,
+                       dessen Filter die gesuchte Zeile gar nicht zeigt. #}
                     <a class="kal-balken kal-{{ e.status }}{{ ' kal-vorher' if e.laeuft_vorher }}{{ ' kal-nachher' if e.laeuft_nachher }}"
-                       href="/?year={{ year }}&q={{ e.booking_key|urlencode }}"
-                       title="{{ e.kunde }} – {{ e.anlass }}&#10;{{ e.service_start.strftime('%d.%m.%Y') }} bis {{ e.service_end.strftime('%d.%m.%Y') }}&#10;{{ e.status }} · Umsatz Soll {{ e.umsatz_soll|swissnum }}">
-                        {% if e.laeuft_vorher %}‹{% endif %}{{ e.kunde or e.anlass }}{% if e.laeuft_nachher %}›{% endif %}
+                       href="/?year={{ e.sichtbar_ab.year }}&status={{ e.status }}&q={{ e.booking_key|urlencode }}#monat-{{ e.sichtbar_ab.month }}"
+                       title="{{ e.kunde }} – {{ e.anlass }}&#10;{{ e.service_start.strftime('%d.%m.%Y') }} bis {{ e.service_end.strftime('%d.%m.%Y') }}&#10;Status: {{ e.status }} · Umsatz Soll {{ e.umsatz_soll|swissnum }}&#10;Klicken öffnet die Detailzeile im Dashboard">
+                        <span class="kal-symbol" aria-hidden="true">{{ e.symbol }}</span>{% if e.laeuft_vorher %}‹{% endif %}{{ e.kunde or e.anlass }}{% if e.laeuft_nachher %}›{% endif %}
                     </a>
                     {% if e.zeitraum_unsicher %}{{ makros.zeitraum_hinweis() }}{% endif %}
                 </span>

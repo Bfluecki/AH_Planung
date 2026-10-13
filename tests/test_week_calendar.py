@@ -133,3 +133,33 @@ def test_monatstrenner_markieren_den_monatsbeginn(db_session):
                           "Juli", "August", "September", "Oktober", "November", "Dezember"]
     # Jeder Monatsname erscheint genau einmal als Trenner.
     assert len(monate) == len(set(monate))
+
+
+def test_sichtbarer_beginn_zeigt_auf_das_richtige_planjahr(db_session):
+    """Ein Anlass ueber den Jahreswechsel darf nicht ins Vorjahr verlinken: das
+    Dashboard zeigt ihn dort gar nicht."""
+    _booking(db_session, "AU-020", dt.date(2026, 12, 30), dt.date(2027, 1, 2))
+    db_session.commit()
+
+    in_2027 = [e for w in calendar_weeks(db_session, 2027, {"beauftragt"}) for e in w.entries]
+    assert in_2027[0].sichtbar_ab == dt.date(2027, 1, 1)
+    assert in_2027[0].sichtbar_ab.year == 2027
+
+    in_2026 = [e for w in calendar_weeks(db_session, 2026, {"beauftragt"}) for e in w.entries]
+    assert in_2026[0].sichtbar_ab == dt.date(2026, 12, 30)
+
+
+def test_jeder_status_hat_ein_eigenes_zeichen(db_session):
+    """Die Farbe allein traegt nicht: schmale Balken, Ausdruck, Farbsehschwaeche."""
+    from app.domain.week_calendar import STATUS_SYMBOLS
+
+    for i, status in enumerate(("nur_angebot", "beauftragt", "verrechnet", "storniert")):
+        _booking(db_session, f"B-{i}", dt.date(2026, 3, 4), dt.date(2026, 3, 4), status=status)
+    db_session.commit()
+
+    eintraege = {e.status: e.symbol
+                 for w in calendar_weeks(db_session, 2026, set(STATUS_SYMBOLS)) for e in w.entries}
+
+    assert eintraege == STATUS_SYMBOLS
+    assert len(set(STATUS_SYMBOLS.values())) == 4
+

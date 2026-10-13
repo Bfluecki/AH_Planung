@@ -81,7 +81,8 @@ def build_report(
     search: str | None = None,
 ) -> tuple[YearSummary, dict[int, list[ReportRow]]]:
     """statuses filtert nach Booking.status (z.B. nur "verrechnet"); None/leer = alle.
-    search filtert zusaetzlich nach Kunde oder Anlass (Teilstring, case-insensitiv).
+    search filtert zusaetzlich nach Kunde, Anlass oder Buchungsnummer
+    (Teilstring, case-insensitiv).
     Beide Filter wirken auf Jahresuebersicht UND Detailzeilen gleichermassen - beide
     werden aus derselben gefilterten Abfrage gebaut."""
     settings = settings or get_settings()
@@ -96,7 +97,15 @@ def build_report(
         query = query.filter(Booking.status.in_(statuses))
     if search and search.strip():
         term = f"%{search.strip()}%"
-        query = query.filter(or_(Booking.kunde.ilike(term), Booking.anlass.ilike(term)))
+        # Auch die Buchungsnummer durchsuchen: der Kalender verlinkt mit ihr auf die
+        # Detailzeile, und wer eine Auftragsnummer aus Bexio vor sich hat, sucht sie.
+        query = query.filter(
+            or_(
+                Booking.kunde.ilike(term),
+                Booking.anlass.ilike(term),
+                Booking.booking_key.ilike(term),
+            )
+        )
     allocations = query.all()
 
     figures = [
