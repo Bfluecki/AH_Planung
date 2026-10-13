@@ -22,6 +22,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
 from app.domain.periods import extract_service_period
+from app.domain.quotes import COMMENT_FIELDS, quote_status_overview
 from app.domain.product_mapping import ErtragsArt, ertragsart_fuer
 from app.models import (
     Booking,
@@ -490,4 +491,47 @@ def admin_debug_zeitraum_herkunft(
         "zeitraum_nur_aus_dokumentdatum": betroffen,
         "anteil_betroffen_pct": round(betroffen / gesamt * 100, 1) if gesamt else 0.0,
         "betroffene_buchungen": aus_dokumentdatum[:limit],
+    }
+
+
+def _freitext_felder(raw: dict | None) -> dict:
+    """Alle Textfelder eines Belegs, die nach Freitext aussehen - unabhaengig davon,
+    ob der Feldname in COMMENT_FIELDS bereits bekannt ist. So faellt auf, unter
+    welchem Namen Bexio den internen Kommentar tatsaechlich liefert."""
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        key: value
+        for key, value in raw.items()
+        if isinstance(value, str) and len(value.strip()) > 3 and not key.endswith("_id")
+    }
+
+
+@router.get("/debug/angebot-status")
+def admin_debug_angebot_status(beispiele: int = 2, db: Session = Depends(get_db)) -> dict:
+    """Welche Angebots-Status kommen vor, und wo steht der interne Kommentar?
+
+    Beantwortet zwei Fragen, die nur die echten Daten beantworten koennen:
+    1. Welche kb_item_status_id bedeutet "abgelehnt"? -> QUOTE_DECLINED_STATUS_IDS
+    2. In welchem Feld liefert Bexio den internen Kommentar? -> COMMENT_FIELDS
+       in app/domain/quotes.py. Findet sich dort gar kein Text, legt Bexio den
+       Kommentar nicht im Beleg selbst ab und muss separat geladen werden.
+    """
+    settings = get_settings()
+    uebersicht = quote_status_overview(db)
+    for eintrag in uebersicht:
+        eintrag["summe"] = str(eintrag["summe"])
+
+    quotes = db.query(Quote).order_by(Quote.id.desc()).limit(beispiele).all()
+    orders = db.query(Order).order_by(Order.id.desc()).limit(beispiele).all()
+    return {
+        "aktuell_als_abgelehnt_konfiguriert": sorted(settings.quote_declined_status_id_set),
+        "bekannte_kommentarfelder": list(COMMENT_FIELDS),
+        "status_uebersicht": uebersicht,
+        "freitext_in_angeboten": [
+            {"document_nr": q.document_nr, "felder": _freitext_felder(q.raw)} for q in quotes
+        ],
+        "freitext_in_auftraegen": [
+            {"document_nr": o.document_nr, "felder": _freitext_felder(o.raw)} for o in orders
+        ],
     }

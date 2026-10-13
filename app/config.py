@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = ""
 
+    # Welche kb_item_status_id eines Bexio-Angebots bedeutet "abgelehnt"? Je Mandant
+    # gegen die echten Daten zu pruefen - /admin/debug/angebot-status zeigt, welche
+    # Status tatsaechlich vorkommen. Kommagetrennt, z.B. "4,6".
+    quote_declined_status_ids: str = "4"
+
     # ---- Automatisches Datenbank-Backup vor jedem Deploy (siehe app/backup.py) ----
     # Ziel ist ein S3-kompatibler Objektspeicher (AWS S3, Backblaze B2, Wasabi,
     # Cloudflare R2, MinIO). Ohne Bucket/Zugangsdaten wird das Backup uebersprungen,
@@ -66,6 +71,18 @@ class Settings(BaseSettings):
             and self.backup_s3_access_key_id
             and self.backup_s3_secret_access_key
         )
+
+    @property
+    def quote_declined_status_id_set(self) -> set[int]:
+        werte = set()
+        for teil in self.quote_declined_status_ids.split(","):
+            teil = teil.strip()
+            if teil:
+                try:
+                    werte.add(int(teil))
+                except ValueError:
+                    continue
+        return werte
 
     @property
     def bexio_scope_list(self) -> list[str]:

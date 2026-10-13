@@ -222,3 +222,34 @@ def test_status_filter_zeigt_standardmaessig_alles_ausser_storniert(client):
     # Drei der vier Checkboxen sind vorausgewaehlt.
     assert page.text.count('type="checkbox" name="status"') == 4
     assert "Status-Filter (3)" in page.text
+
+
+def test_report_abgelehnte_angebote_wird_gerendert(client):
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Contact, Quote
+
+    db = next(client.app.dependency_overrides[get_db]())
+    db.add(Contact(id=1, contact_nr="K-1", name="Musikverein"))
+    db.add(Quote(id=1, document_nr="AN-001", contact_id=1, title="Konzert 5. Juni 2026",
+                 quote_date=dt.date(2026, 2, 10), total=Decimal("3000"), kb_item_status_id=4,
+                 raw={"internal_note": "Zu teuer"}))
+    db.commit()
+    db.close()
+
+    page = client.get("/angebote/abgelehnt?year=2026")
+    assert page.status_code == 200
+    assert "AN-001" in page.text
+    assert "Musikverein" in page.text
+    assert "Zu teuer" in page.text
+    assert "3&#39;000.00" in page.text
+
+
+def test_report_erklaert_leeres_ergebnis(client):
+    """Ein leerer Report darf nicht wie ein Datenproblem aussehen - er muss sagen,
+    welche Statuszuordnung gilt und wo man sie prueft."""
+    page = client.get("/angebote/abgelehnt?year=2026")
+    assert "Keine abgelehnten Angebote" in page.text
+    assert "/admin/debug/angebot-status" in page.text

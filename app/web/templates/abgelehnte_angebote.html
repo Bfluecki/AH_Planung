@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Abgelehnte Angebote {{ year }} – Aarbergerhus</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <h1>Aarbergerhus</h1>
+            <span class="brand-sub">Abgelehnte Angebote</span>
+            <span class="year-badge">{{ year }}</span>
+        </div>
+        <nav>
+            <a href="/?year={{ year }}">&larr; Dashboard</a>
+            <a href="/angebote/abgelehnt?year={{ year - 1 }}">&larr; {{ year - 1 }}</a>
+            <a href="/angebote/abgelehnt?year={{ year + 1 }}">{{ year + 1 }} &rarr;</a>
+            <a href="/auswertung?year={{ year }}">Auswertung</a>
+            <a href="/hilfe">Hilfe</a>
+            {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
+        </nav>
+    </header>
+
+    <div class="content">
+    <section>
+        <h2>Übersicht {{ year }}</h2>
+        <div class="kpi-grid">
+            <div class="kpi">
+                <div class="kpi-label">Abgelehnte Angebote</div>
+                <div class="kpi-value">{{ anzahl }}</div>
+                <div class="kpi-sub">nach Angebotsdatum {{ year }}</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Entgangener Umsatz</div>
+                <div class="kpi-value">{{ summe|swissnum }}</div>
+                <div class="kpi-sub">Summe der Angebotsbeträge</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Mit Begründung</div>
+                <div class="kpi-value">{{ mit_begruendung }}</div>
+                <div class="kpi-sub">von {{ anzahl }} mit internem Kommentar</div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Angebote</h2>
+        {% if rows %}
+        <table class="detail">
+            <thead>
+                <tr>
+                    <th class="text-col">Angebot</th>
+                    <th class="text-col">Datum</th>
+                    <th class="text-col">Kunde</th>
+                    <th class="text-col">Anlass</th>
+                    <th class="text-col">Zeitraum</th>
+                    <th>Betrag</th>
+                    <th class="text-col">Begründung (interner Kommentar)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td class="text-col">{{ row.document_nr }}{% if row.hat_auftrag %} <span class="zeitraum-unsicher" title="Zu diesem abgelehnten Angebot existiert trotzdem ein Auftrag – entweder ist der Status in Bexio veraltet oder es wurde doch gebucht.">⚠</span>{% endif %}</td>
+                    <td class="text-col">{{ row.quote_date.strftime('%d.%m.%Y') if row.quote_date else "" }}</td>
+                    <td class="text-col">{{ row.kunde }}</td>
+                    <td class="text-col">{{ row.anlass }}</td>
+                    <td class="text-col">{{ format_zeitraum(row.service_start, row.service_end) }}</td>
+                    <td>{{ row.total|swissnum }}</td>
+                    <td class="text-col">{{ row.begruendung or "—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Keine abgelehnten Angebote mit Angebotsdatum {{ year }}.</p>
+        <div class="callout">Falls das nicht stimmt, passt vermutlich die Statuszuordnung nicht:
+        als «abgelehnt» gilt zurzeit
+        {% if status_ids %}<code>kb_item_status_id {{ status_ids|join(', ') }}</code>{% else %}<strong>kein Status</strong>{% endif %}.
+        Welche Status in deinen Daten wirklich vorkommen, zeigt
+        <code>/admin/debug/angebot-status</code>; einstellen lässt sich das über die
+        Railway-Variable <code>QUOTE_DECLINED_STATUS_IDS</code>.</div>
+        {% endif %}
+    </section>
+    </div>
+</body>
+</html>

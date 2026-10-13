@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.auth import ROLE_ADMIN, create_user
 from app.config import get_settings
 from app.db import Base, get_db
-from app.models import Booking, Invoice, LineItem, MonthlyAllocation, Order
+from app.models import Booking, Invoice, LineItem, MonthlyAllocation, Order, Quote
 
 
 @pytest.fixture
@@ -334,3 +334,30 @@ def test_zeitraum_herkunft_trennt_titel_von_dokumentdatum(client):
     # das echte Anlassdatum strukturiert vorliegt.
     assert betroffen["bexio_rohfelder_mit_datum"]["is_valid_from"] == "2027-05-21"
     assert "title" not in betroffen["bexio_rohfelder_mit_datum"]
+
+
+def test_angebot_status_diagnose_zeigt_status_und_freitextfelder(client):
+    """Zeigt, welche Status vorkommen und unter welchem Feldnamen Bexio den internen
+    Kommentar liefert - beides laesst sich nur an echten Daten feststellen."""
+    test_client, TestSession = client
+    db = TestSession()
+    db.add(Quote(id=1, document_nr="AN-001", title="Anlass", quote_date=dt.date(2026, 2, 1),
+                 total=Decimal("1000"), kb_item_status_id=4,
+                 raw={"internal_note": "Kunde hat abgesagt", "contact_id": 5, "kb_item_status_id": 4}))
+    db.add(Quote(id=2, document_nr="AN-002", title="Anlass", quote_date=dt.date(2026, 2, 2),
+                 total=Decimal("2000"), kb_item_status_id=3, raw={}))
+    db.commit()
+    db.close()
+
+    body = test_client.get("/admin/debug/angebot-status").json()
+
+    status = {e["status_id"]: e for e in body["status_uebersicht"]}
+    assert status[4]["anzahl"] == 1 and status[4]["summe"] == "1000.00"
+    assert status[3]["anzahl"] == 1
+    assert body["aktuell_als_abgelehnt_konfiguriert"] == [4]
+
+    proben = {p["document_nr"]: p["felder"] for p in body["freitext_in_angeboten"]}
+    felder = proben["AN-001"]
+    assert felder["internal_note"] == "Kunde hat abgesagt"
+    # Reine Verweisfelder sind kein Freitext und wuerden nur Rauschen erzeugen.
+    assert "contact_id" not in felder

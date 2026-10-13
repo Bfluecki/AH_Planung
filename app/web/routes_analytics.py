@@ -9,9 +9,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
-from app.auth import User, require_login
+from app.auth import ROLE_ADMIN, User, require_login
 from app.config import get_settings
 from app.db import get_db
+from app.domain.quotes import declined_quotes
+from app.domain.reporting import format_zeitraum
 from app.domain.analytics import (
     accuracy_over_time,
     average_stats,
@@ -269,5 +271,37 @@ def auswertung(
             "cumulative": cumulative,
             "cum_chart": cum_chart,
             "month_names": _MONTH_NAMES_DE,
+        },
+    )
+
+
+@router.get("/angebote/abgelehnt")
+def abgelehnte_angebote(
+    request: Request,
+    year: int | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_login),
+):
+    """Separater Report: welche Angebote wurden abgelehnt, und mit welcher in Bexio
+    erfassten Begruendung."""
+    settings = get_settings()
+    effective = get_effective_config(db, settings)
+    year = year or effective.current_planning_year
+    status_ids = settings.quote_declined_status_id_set
+
+    rows = declined_quotes(db, status_ids, year=year)
+    return templates.TemplateResponse(
+        "abgelehnte_angebote.html",
+        {
+            "request": request,
+            "year": year,
+            "rows": rows,
+            "anzahl": len(rows),
+            "summe": sum((r.total for r in rows), Decimal("0")),
+            "mit_begruendung": sum(1 for r in rows if r.begruendung),
+            "status_ids": sorted(status_ids),
+            "format_zeitraum": format_zeitraum,
+            "current_user": user.username,
+            "is_admin": user.role == ROLE_ADMIN,
         },
     )
