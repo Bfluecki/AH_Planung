@@ -16,6 +16,15 @@ from sqlalchemy.orm import Session
 from app.models import Booking
 
 WEEKDAY_NAMES = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+# Zeichen je Status: die Farbe allein genuegt nicht - sie ist bei kurzen Balken
+# schwer zu treffen, im Ausdruck weg und fuer Farbsehschwaeche unzuverlaessig.
+STATUS_SYMBOLS = {
+    "nur_angebot": "○",
+    "beauftragt": "◐",
+    "verrechnet": "●",
+    "storniert": "✕",
+}
+
 MONTH_NAMES = [
     "Januar", "Februar", "März", "April", "Mai", "Juni",
     "Juli", "August", "September", "Oktober", "November", "Dezember",
@@ -39,10 +48,18 @@ class CalendarEntry:
     span: int
     laeuft_vorher: bool
     laeuft_nachher: bool
+    # Ankerpunkt fuer den Link auf die Detailzeile: erster in dieser Woche
+    # sichtbarer Tag, begrenzt aufs angezeigte Jahr. Nicht service_start verwenden -
+    # ein Anlass ueber den Jahreswechsel laege sonst im falschen Planjahr.
+    sichtbar_ab: dt.date = dt.date(1970, 1, 1)
 
     @property
     def end_column(self) -> int:
         return self.start_column + self.span - 1
+
+    @property
+    def symbol(self) -> str:
+        return STATUS_SYMBOLS.get(self.status, "·")
 
 
 @dataclass
@@ -110,6 +127,10 @@ def calendar_weeks(
                 continue
             sichtbar_ab = max(start, monday)
             sichtbar_bis = min(end, sunday)
+            # Ankerpunkt fuers Verlinken aufs angezeigte Jahr begrenzen: die erste
+            # bzw. letzte Woche eines Jahres ragt ins Nachbarjahr, sonst verlinkte
+            # ein Anlass ueber den Jahreswechsel ins falsche Planjahr.
+            anker = min(max(sichtbar_ab, dt.date(year, 1, 1)), dt.date(year, 12, 31))
             woche.entries.append(
                 CalendarEntry(
                     booking_key=booking.booking_key,
@@ -124,6 +145,7 @@ def calendar_weeks(
                     span=(sichtbar_bis - sichtbar_ab).days + 1,
                     laeuft_vorher=start < monday,
                     laeuft_nachher=end > sunday,
+                    sichtbar_ab=anker,
                 )
             )
         # Innerhalb der Woche nach Starttag, dann laengster Balken zuerst - so

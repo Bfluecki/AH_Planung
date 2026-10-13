@@ -17,7 +17,12 @@ from app.budget import save_budget_override
 from app.config import get_settings
 from app.db import get_db
 from app.domain.reporting import build_report
-from app.domain.week_calendar import WEEKDAY_NAMES, calendar_summary, calendar_weeks
+from app.domain.week_calendar import (
+    STATUS_SYMBOLS,
+    WEEKDAY_NAMES,
+    calendar_summary,
+    calendar_weeks,
+)
 from app.domain.soll_ist import (
     STATUS_BEAUFTRAGT,
     STATUS_NUR_ANGEBOT,
@@ -139,6 +144,7 @@ def kalender(
             "wochen": wochen,
             "zahlen": calendar_summary(wochen),
             "weekday_names": WEEKDAY_NAMES,
+            "status_symbols": STATUS_SYMBOLS,
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,
             "default_statuses": set(CALENDAR_DEFAULT_STATUSES),

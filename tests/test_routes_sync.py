@@ -343,3 +343,51 @@ def test_report_erklaert_auftrag_trotz_ablehnung(client):
     assert "Auftrag trotz Ablehnung" in page.text
     assert 'class="hinweis-icon"' in page.text
 
+
+def test_kalenderlink_fuehrt_auf_die_detailzeile(client):
+    """Der Link muss Jahr, Status und Buchungsnummer tragen und auf den Monat
+    springen - sonst landet man auf einem Dashboard, dessen Filter die gesuchte
+    Zeile gar nicht zeigt."""
+    _kalender_buchung(client, booking_key="AU-200", status="verrechnet")
+
+    page = client.get("/kalender?year=2026&status=verrechnet")
+
+    assert "/?year=2026&status=verrechnet&q=AU-200#monat-3" in page.text
+
+
+def test_dashboard_findet_buchung_ueber_die_nummer(client):
+    """Ohne das wuerde der Kalenderlink ins Leere fuehren: die Suche kannte bisher
+    nur Kunde und Anlass."""
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Booking, MonthlyAllocation
+
+    db = next(client.app.dependency_overrides[get_db]())
+    booking = Booking(booking_key="AU-201", status="beauftragt", kunde="Musikverein",
+                      anlass="Probewochenende", service_start=dt.date(2026, 3, 4),
+                      service_end=dt.date(2026, 3, 6), umsatz_soll=Decimal("4000"))
+    db.add(booking)
+    db.flush()
+    db.add(MonthlyAllocation(booking_id=booking.id, year=2026, month=3, days=Decimal("3"),
+                             umsatz_soll=Decimal("4000"), umsatz_ist=Decimal("0")))
+    db.commit()
+    db.close()
+
+    treffer = client.get("/?year=2026&status=beauftragt&q=AU-201")
+    assert "Musikverein" in treffer.text
+
+    daneben = client.get("/?year=2026&status=beauftragt&q=AU-999")
+    assert "Musikverein" not in daneben.text
+
+
+def test_kalender_zeigt_status_als_zeichen(client):
+    """Farbe allein traegt nicht - bei schmalen Balken, im Ausdruck und bei
+    Farbsehschwaeche."""
+    _kalender_buchung(client, booking_key="AU-202", status="verrechnet")
+
+    page = client.get("/kalender?year=2026&status=verrechnet")
+
+    assert '<span class="kal-symbol" aria-hidden="true">●</span>' in page.text
+
