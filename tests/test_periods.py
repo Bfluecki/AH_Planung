@@ -114,3 +114,50 @@ def test_days_in_month_overlap_cross_month():
     assert days_in_month_overlap(start, end, 2026, 6) == 6  # 25-30 Juni
     assert days_in_month_overlap(start, end, 2026, 7) == 3  # 1-3 Juli
     assert days_in_month_overlap(start, end, 2026, 8) == 0
+
+
+# --- Zweistellige Jahreszahlen (echte Bexio-Titel, Stand 10/2026) -------------
+# Ohne diese Formen fiel der Parser auf das Dokumentdatum zurueck: ein 2026
+# erteilter Auftrag fuer einen Anlass 2027 landete im Planjahr 2026.
+
+def test_numerischer_bereich_mit_zweistelligem_jahr():
+    start, end = extract_service_period(
+        "Vokalensemble I Sestini Wochenende vom 03.09.27-05.09.27", dt.date(2026, 7, 15)
+    )
+    assert start == dt.date(2027, 9, 3)
+    assert end == dt.date(2027, 9, 5)
+
+
+def test_numerischer_bereich_mit_leerzeichen_um_den_bindestrich():
+    start, end = extract_service_period(
+        "Erzählerinnentreff vom 19.02.27 - 21.02.27", dt.date(2026, 7, 15)
+    )
+    assert start == dt.date(2027, 2, 19)
+    assert end == dt.date(2027, 2, 21)
+
+
+def test_bereich_ueber_den_jahreswechsel_mit_zweistelligem_jahr():
+    start, end = extract_service_period("Silvester 30.12.26-02.01.27", None)
+    assert start == dt.date(2026, 12, 30)
+    assert end == dt.date(2027, 1, 2)
+
+
+def test_vierstellige_jahre_funktionieren_unveraendert():
+    start, end = extract_service_period("Kurs 25.06.-03.07.2026", None)
+    assert start == dt.date(2026, 6, 25)
+    assert end == dt.date(2026, 7, 3)
+
+
+def test_einzelnes_numerisches_datum_wird_erkannt():
+    assert extract_service_period("Sitzung 25.07.2026", None) == (
+        dt.date(2026, 7, 25), dt.date(2026, 7, 25)
+    )
+    assert extract_service_period("Treffen 05.09.27", None) == (
+        dt.date(2027, 9, 5), dt.date(2027, 9, 5)
+    )
+
+
+def test_ohne_datum_weiterhin_dokumentdatum_als_notbehelf():
+    assert extract_service_period("Vereinsanlass", dt.date(2026, 7, 15)) == (
+        dt.date(2026, 7, 15), dt.date(2026, 7, 15)
+    )

@@ -261,3 +261,142 @@ button.primary:hover { background: var(--color-accent-dark); }
 /* ---- Ertragsart-Mix: segmentierter Balken ---- */
 .mix-bar { display: flex; width: 100%; height: 26px; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .mix-seg { height: 100%; min-width: 2px; }
+
+/* ---- Zweispaltiges Layout: Auswahl links, Inhalt rechts ---- */
+.layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+.layout .content { padding: 0; margin: 0; flex: 1; min-width: 0; }
+
+.sidebar {
+    flex: 0 0 15rem;
+    position: sticky;
+    top: 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1rem;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 1.25rem; }
+.sidebar-nav a {
+    display: block;
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--color-accent);
+    border: 1px solid transparent;
+}
+.sidebar-nav a:hover { background: var(--color-bg); }
+.sidebar-nav a.aktiv {
+    background: var(--color-accent);
+    color: #fff;
+    font-weight: 600;
+}
+.sidebar-block { margin-bottom: 1.1rem; }
+.sidebar-block h3 {
+    font-family: Georgia, serif;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-muted);
+    margin: 0 0 0.45rem;
+}
+.sidebar-block input[type="search"] {
+    width: 100%;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font: inherit;
+}
+.jahr-wechsler { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
+.jahr-wechsler strong { font-family: Georgia, serif; font-size: 1.2rem; }
+.jahr-wechsler a {
+    text-decoration: none;
+    color: var(--color-accent);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0 0.55rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+.jahr-wechsler a:hover { background: var(--color-bg); }
+.status-option { display: flex; align-items: center; gap: 0.45rem; padding: 0.18rem 0; cursor: pointer; }
+.sidebar-apply {
+    width: 100%;
+    padding: 0.45rem;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font: inherit;
+    cursor: pointer;
+}
+.sidebar-apply:hover { background: var(--color-accent-dark); }
+.sidebar-reset {
+    display: block;
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+}
+
+/* Schmale Bildschirme: Auswahl ueber den Inhalt legen statt daneben. */
+@media (max-width: 900px) {
+    .layout { flex-direction: column; padding: 0 1rem; }
+    .sidebar { position: static; flex: 1 1 auto; width: 100%; }
+}
+
+/* ---- Belegungskalender ---- */
+.kal-kopf, .kal-woche { display: flex; align-items: stretch; gap: 0.5rem; }
+.kal-kopf { font-weight: 600; color: var(--color-muted); font-size: 0.8rem; padding-bottom: 0.3rem; }
+.kal-kw {
+    flex: 0 0 4.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+}
+.kal-kw small { font-size: 0.7rem; opacity: 0.8; }
+.kal-tage { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.kal-kopf .kal-tage span { text-align: center; }
+.kal-woche {
+    border-top: 1px solid var(--color-border);
+    padding: 0.3rem 0;
+    min-height: 2.4rem;
+}
+.kal-woche.kal-leer { min-height: 1.6rem; opacity: 0.55; }
+.kal-raster { grid-auto-rows: minmax(1.5rem, auto); }
+.kal-zelle { background: var(--color-row-alt); border-radius: 3px; grid-row: 1 / -1; }
+.kal-zelle:nth-child(6), .kal-zelle:nth-child(7) { background: #f0e9dc; }
+
+.kal-balken {
+    display: block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #fff;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.kal-balken:hover { filter: brightness(1.12); }
+/* Farben je Status - bewusst klar unterscheidbar, auch bei Rot-Gruen-Schwaeche. */
+.kal-nur_angebot { background: #8a8276; }
+.kal-beauftragt { background: var(--color-gold); }
+.kal-verrechnet { background: var(--color-positive); }
+.kal-storniert { background: var(--color-negative); }
+/* Laeuft der Anlass ueber den Wochenrand hinaus, Kante dort offen zeichnen. */
+.kal-vorher { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-style: dashed; }
+.kal-nachher { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-style: dashed; }
+
+.kal-legende { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; }
+.kal-legende .kal-balken { font-size: 0.75rem; }

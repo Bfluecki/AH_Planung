@@ -1,0 +1,43 @@
+{# Gemeinsame Seitenleiste von Dashboard und Kalender: Navigation, Jahr, Suche,
+   Statusauswahl. Erwartet: aktiv ("dashboard"|"kalender"), ziel_url, year,
+   all_statuses, selected_statuses, search. #}
+<aside class="sidebar">
+    <nav class="sidebar-nav">
+        <a href="/?year={{ year }}" class="{{ 'aktiv' if aktiv == 'dashboard' }}">Dashboard</a>
+        <a href="/kalender?year={{ year }}" class="{{ 'aktiv' if aktiv == 'kalender' }}">Kalender</a>
+        <a href="/auswertung?year={{ year }}">Auswertung</a>
+        <a href="/angebote/abgelehnt?year={{ year }}">Abgelehnte Angebote</a>
+    </nav>
+
+    <form action="{{ ziel_url }}" method="get" class="sidebar-form">
+        <div class="sidebar-block">
+            <h3>Planjahr</h3>
+            <div class="jahr-wechsler">
+                <a href="{{ ziel_url }}?year={{ year - 1 }}" title="Vorjahr">‹</a>
+                <strong>{{ year }}</strong>
+                <a href="{{ ziel_url }}?year={{ year + 1 }}" title="Folgejahr">›</a>
+            </div>
+            <input type="hidden" name="year" value="{{ year }}">
+        </div>
+
+        <div class="sidebar-block">
+            <h3><label for="suche">Suche</label></h3>
+            <input type="search" id="suche" name="q" value="{{ search }}" placeholder="Kunde oder Anlass">
+        </div>
+
+        <div class="sidebar-block">
+            <h3>Status</h3>
+            {% for s in all_statuses %}
+            <label class="status-option">
+                <input type="checkbox" name="status" value="{{ s }}" {{ "checked" if s in selected_statuses else "" }}>
+                <span class="status status-{{ s }}">{{ s }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="sidebar-apply">Anwenden</button>
+        {% if search or selected_statuses != default_statuses %}
+        <a href="{{ ziel_url }}?year={{ year }}" class="sidebar-reset">Zurücksetzen</a>
+        {% endif %}
+    </form>
+</aside>

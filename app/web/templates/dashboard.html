@@ -14,36 +14,11 @@
             <span class="year-badge">{{ year }}</span>
         </div>
         <nav>
-            <a href="/?year={{ year - 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">&larr; {{ year - 1 }}</a>
-            <a href="/?year={{ year + 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}">{{ year + 1 }} &rarr;</a>
-            <a href="/auswertung?year={{ year }}">Auswertung</a>
-            <a href="/angebote/abgelehnt?year={{ year }}">Abgelehnte Angebote</a>
             <a href="/export/{{ year }}.xlsx" class="button">Excel-Export</a>
-            <form action="/" method="get" class="search-form">
-                <input type="hidden" name="year" value="{{ year }}">
-                {% for s in selected_statuses %}<input type="hidden" name="status" value="{{ s }}">{% endfor %}
-                <input type="search" name="q" value="{{ search }}" placeholder="Kunde oder Anlass suchen …">
-                <button type="submit">Suchen</button>
-                {% if search %}<a href="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}" class="clear-search">✕</a>{% endif %}
-            </form>
             <form action="/sync/run" method="post" class="inline-form">
                 <input type="hidden" name="redirect_to" value="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}{% if search %}&q={{ search|urlencode }}{% endif %}">
                 <button type="submit">Jetzt synchronisieren</button>
             </form>
-            <details class="status-filter">
-                <summary>Status-Filter ({{ selected_statuses|length }})</summary>
-                <form action="/" method="get">
-                    <input type="hidden" name="year" value="{{ year }}">
-                    {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
-                    {% for s in all_statuses %}
-                    <label>
-                        <input type="checkbox" name="status" value="{{ s }}" {{ "checked" if s in selected_statuses else "" }}>
-                        {{ s }}
-                    </label>
-                    {% endfor %}
-                    <button type="submit">Anwenden</button>
-                </form>
-            </details>
             <a href="/hilfe">Hilfe</a>
             {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
             <a href="/passwort">Passwort</a>
@@ -51,6 +26,8 @@
         </nav>
     </header>
 
+    <div class="layout">
+    {% with aktiv = "dashboard", ziel_url = "/" %}{% include "_seitenleiste.html" %}{% endwith %}
     <div class="content">
     {% if flash %}
     <section>
@@ -178,6 +155,7 @@
         </details>
         {% endfor %}
     </section>
+    </div>
     </div>
 </body>
 </html>
