@@ -95,13 +95,23 @@ def _weeks_of_year(year: int) -> list[tuple[dt.date, dt.date]]:
 
 
 def calendar_weeks(
-    db: Session, year: int, statuses: set[str], search: str | None = None
+    db: Session, year: int, statuses: set[str] | None, search: str | None = None
 ) -> list[CalendarWeek]:
-    """Wochenweise Belegung des Jahres, gefiltert nach Status und Suchbegriff."""
+    """Wochenweise Belegung des Jahres, gefiltert nach Status und Suchbegriff.
+
+    ``statuses=None`` bedeutet "kein Statusfilter", eine *leere Menge* dagegen
+    "nichts anzeigen" - wer in der Auswahl alle Haken entfernt, will nicht
+    ploetzlich alles sehen.
+    """
     query = db.query(Booking).filter(
         Booking.service_start.isnot(None), Booking.service_end.isnot(None)
     )
-    if statuses:
+    if statuses is not None:
+        if not statuses:
+            return [
+                CalendarWeek(week=mo.isocalendar()[1], monday=mo, sunday=so)
+                for mo, so in _weeks_of_year(year)
+            ]
         query = query.filter(Booking.status.in_(sorted(statuses)))
     bookings = query.all()
 

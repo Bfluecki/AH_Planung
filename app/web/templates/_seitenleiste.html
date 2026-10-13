@@ -15,7 +15,11 @@
             <span class="nav-icon" aria-hidden="true">✕</span>Abgelehnte Angebote</a>
     </nav>
 
-    <form action="{{ ziel_url }}" method="get" class="sidebar-form">
+    <form action="{{ ziel_url }}" method="get" class="sidebar-form" data-auto>
+        {# Markiert eine bewusst abgeschickte Auswahl. Ohne das waere "nichts
+           angehakt" nicht von "Seite zum ersten Mal geoeffnet" zu unterscheiden,
+           und die Voreinstellung spraenge zurueck. #}
+        <input type="hidden" name="filter" value="1">
         <details class="sidebar-group" open>
             <summary>Planjahr</summary>
             <div class="group-body">
@@ -54,3 +58,12 @@
         {% endif %}
     </form>
 </aside>
+
+<script>
+// Auswahl sofort anwenden: ein Haken soll wirken, ohne dass man zusaetzlich
+// "Anwenden" drueckt. Ohne JavaScript bleibt der Knopf der Weg - deshalb
+// Fortschritt statt Voraussetzung.
+document.querySelectorAll('form[data-auto] input[type="checkbox"]').forEach(function (feld) {
+    feld.addEventListener('change', function () { feld.form.submit(); });
+});
+</script>

@@ -149,7 +149,7 @@
                 </tbody>
             </table>
             {% else %}
-            <p class="empty">Keine Buchungen (mit aktuellem Status-Filter).</p>
+            <p class="empty">{% if not selected_statuses %}Kein Status ausgewählt – links mindestens einen anhaken.{% else %}Keine Buchungen (mit aktuellem Status-Filter).{% endif %}</p>
             {% endif %}
             </div>
         </details>
