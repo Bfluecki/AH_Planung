@@ -161,6 +161,8 @@ details.month .month-body { padding: 0 0.75rem 0.9rem; }
 .hint code { background: #efe7d8; padding: 0.1rem 0.3rem; border-radius: 3px; }
 .status-ok { color: var(--color-positive); font-weight: bold; }
 .status-missing { color: var(--color-negative); font-weight: bold; }
+/* Zeitraum nur vom Dokumentdatum abgeleitet - Zeile kann im falschen Monat stehen. */
+.zeitraum-unsicher { color: var(--color-negative); cursor: help; }
 
 /* ---- Status-Filter Dropdown ---- */
 nav .status-filter { display: inline-block; position: relative; }

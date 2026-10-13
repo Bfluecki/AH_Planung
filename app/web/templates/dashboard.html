@@ -124,6 +124,7 @@
                 <span>{{ month_names[month - 1] }}</span>
                 <span class="month-meta">
                     {{ rows|length }} Buchung(en) ·
+                    Umsatz Soll {{ (rows|sum(attribute='umsatz_soll'))|swissnum }} ·
                     Umsatz Ist {{ (rows|sum(attribute='umsatz_ist'))|swissnum }}
                 </span>
             </summary>
@@ -153,7 +154,7 @@
                     <tr>
                         <td class="text-col">{{ row.kunde }}</td>
                         <td class="text-col">{{ row.anlass }}</td>
-                        <td class="text-col">{{ row.zeitraum }}</td>
+                        <td class="text-col">{{ row.zeitraum }}{% if row.zeitraum_unsicher %} <span class="zeitraum-unsicher" title="Im Belegtitel steht kein Anlassdatum. Der Zeitraum ist vom Dokumentdatum abgeleitet – die Zeile kann im falschen Monat oder Jahr stehen.">⚠</span>{% endif %}</td>
                         <td class="text-col"><span class="status status-{{ row.status }}">{{ row.status }}</span></td>
                         <td>{{ row.pax_soll if row.pax_soll is not none else "" }}</td>
                         <td>{{ row.pax_ist if row.pax_ist is not none else "" }}</td>

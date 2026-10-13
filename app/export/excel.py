@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 
 from openpyxl import Workbook
+from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
@@ -65,7 +66,16 @@ def _write_detail_sheet(wb: Workbook, month: int, rows: list[ReportRow]) -> None
     for row in rows:
         ws.cell(row=r, column=1, value=row.kunde)
         ws.cell(row=r, column=2, value=row.anlass)
-        ws.cell(row=r, column=3, value=row.zeitraum)
+        # Unsicherer Zeitraum wird auch im Export markiert - sonst geht die Warnung
+        # beim Weiterreichen der Datei verloren.
+        zelle = ws.cell(row=r, column=3, value=f"{row.zeitraum} (?)" if row.zeitraum_unsicher else row.zeitraum)
+        if row.zeitraum_unsicher:
+            zelle.font = Font(color="A5323F")
+            zelle.comment = Comment(
+                "Im Belegtitel steht kein Anlassdatum. Der Zeitraum ist vom Dokumentdatum "
+                "abgeleitet - die Zeile kann im falschen Monat oder Jahr stehen.",
+                "AH Planung",
+            )
         ws.cell(row=r, column=4, value=row.status)
         ws.cell(row=r, column=5, value=row.pax_soll)
         ws.cell(row=r, column=6, value=row.pax_ist)

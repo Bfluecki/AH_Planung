@@ -35,10 +35,11 @@ MONTH_NAMES_DE = [
     "Juli", "August", "September", "Oktober", "November", "Dezember",
 ]
 
-# Reihenfolge fuer die Filter-Checkboxen; Default zeigt nur verrechnete Buchungen,
-# die uebrigen Status sind ueber das Dropdown zuwaehlbar.
+# Reihenfolge fuer die Filter-Checkboxen. Als Planungswerkzeug zeigt die Ansicht
+# standardmaessig alles, was zum Plan beitraegt - Angebote, Auftraege und bereits
+# Verrechnetes. Nur Storniertes ist ausgeblendet und per Dropdown zuschaltbar.
 ALL_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET, STATUS_STORNIERT]
-DEFAULT_STATUSES = [STATUS_VERRECHNET]
+DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET]
 
 
 @router.get("/")

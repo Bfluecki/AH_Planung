@@ -30,6 +30,9 @@ class ReportRow:
     kunde: str
     anlass: str
     zeitraum: str
+    # True, wenn im Belegtitel kein Anlassdatum stand und der Zeitraum nur vom
+    # Dokumentdatum abgeleitet ist - die Zeile kann im falschen Planmonat liegen.
+    zeitraum_unsicher: bool
     status: str
     linked_by: str
     pax_soll: int | None
@@ -122,6 +125,7 @@ def build_report(
                 kunde=booking.kunde,
                 anlass=booking.anlass,
                 zeitraum=format_zeitraum(booking.service_start, booking.service_end),
+                zeitraum_unsicher=booking.zeitraum_unsicher,
                 status=booking.status,
                 linked_by=booking.linked_by,
                 pax_soll=booking.pax_soll,

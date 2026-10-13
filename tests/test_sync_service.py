@@ -216,3 +216,43 @@ def test_rebuild_direct_cancelled_and_draft_invoices(db_session):
     assert bookings["RE-100"].umsatz_ist == Decimal("500.00")
     assert bookings["RE-101"].status == "storniert"
     assert bookings["RE-101"].umsatz_ist == Decimal("0.00")
+
+
+def test_beauftragt_ohne_datum_im_titel_wird_als_unsicher_markiert(db_session):
+    """Steht im Auftragstitel kein Anlassdatum, dient das Auftragsdatum als Notbehelf -
+    die Buchung landet dann im Planjahr des Auftrags statt in dem des Anlasses und muss
+    deshalb erkennbar markiert sein."""
+    import datetime as dt
+
+    from app.models import Booking, Contact, Order
+    from app.sync.service import rebuild_bookings
+
+    db_session.add(Contact(id=1, contact_nr="K-1", name="Musikgesellschaft"))
+    # Titel traegt den Anlasstermin 2027 -> Zeitraum stammt aus dem Titel.
+    db_session.add(Order(id=1, document_nr="AU-001", contact_id=1,
+                          title="Probewochenende vom 21. bis 23. Mai 2027",
+                          order_date=dt.date(2026, 3, 10), total=Decimal("4000.00")))
+    # Titel ohne jedes Datum -> Notbehelf Auftragsdatum (2026), obwohl der Anlass
+    # moeglicherweise erst 2027 stattfindet.
+    db_session.add(Order(id=2, document_nr="AU-002", contact_id=1,
+                          title="Vereinsanlass", order_date=dt.date(2026, 3, 11),
+                          total=Decimal("2000.00")))
+    db_session.commit()
+
+    rebuild_bookings(db_session)
+    bookings = {b.booking_key: b for b in db_session.query(Booking).all()}
+
+    aus_titel = bookings["AU-001"]
+    assert aus_titel.status == "beauftragt"
+    assert aus_titel.service_period_source == "title"
+    assert aus_titel.zeitraum_unsicher is False
+    assert aus_titel.service_start == dt.date(2027, 5, 21)
+    assert aus_titel.service_end == dt.date(2027, 5, 23)
+
+    notbehelf = bookings["AU-002"]
+    assert notbehelf.status == "beauftragt"
+    assert notbehelf.service_period_source == "document_date"
+    assert notbehelf.zeitraum_unsicher is True
+    # Zahlen bleiben unveraendert - es wird nur gekennzeichnet.
+    assert notbehelf.service_start == dt.date(2026, 3, 11)
+    assert notbehelf.umsatz_soll == Decimal("2000.00")

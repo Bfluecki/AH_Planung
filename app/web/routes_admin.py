@@ -21,8 +21,10 @@ from app.auth import ALL_ROLES, ROLE_ADMIN, ROLE_LABELS, ROLE_MITARBEITER, User,
 from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
+from app.domain.periods import extract_service_period
 from app.domain.product_mapping import ErtragsArt, ertragsart_fuer
 from app.models import (
+    Booking,
     CreditNote,
     Invoice,
     LineItem,
@@ -423,4 +425,69 @@ def admin_debug_revenue_reconciliation(db: Session = Depends(get_db)) -> dict:
             str(year): {"umsatz_soll": str(g["umsatz_soll"]), "umsatz_ist": str(g["umsatz_ist"])}
             for year, g in sorted(by_service_year.items())
         },
+    }
+
+
+# Welche Rohfelder eines Bexio-Belegs koennten ein Datum enthalten? Zeigt der
+# Diagnose-Endpunkt mit an, damit erkennbar wird, ob das Anlassdatum doch
+# strukturiert geliefert wird (statt nur im Titel zu stehen).
+def _date_like_raw_fields(raw: dict | None) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        key: value
+        for key, value in raw.items()
+        if value not in (None, "", [], {})
+        and any(token in key.lower() for token in ("date", "valid", "period", "von", "bis", "from", "to"))
+    }
+
+
+@router.get("/debug/zeitraum-herkunft")
+def admin_debug_zeitraum_herkunft(
+    status: str = "beauftragt", limit: int = 50, db: Session = Depends(get_db)
+) -> dict:
+    """Woher stammt der Leistungszeitraum je Buchung - aus dem Belegtitel oder nur
+    aus dem Dokumentdatum?
+
+    Steht im Titel kein Datum, faellt app/domain/periods.py auf das Dokumentdatum
+    zurueck (bei "beauftragt" also das Auftragsdatum). Solche Buchungen landen im
+    Planjahr des Auftrags statt in dem des Anlasses. Dieser Endpunkt zaehlt die
+    Faelle und zeigt Titel sowie alle datumsaehnlichen Bexio-Rohfelder des Auftrags,
+    damit beurteilt werden kann, ob sich das echte Anlassdatum anders beschaffen
+    laesst. status="all" fuer alle Status.
+    """
+    query = db.query(Booking)
+    if status != "all":
+        query = query.filter_by(status=status)
+    bookings = query.all()
+
+    aus_titel, aus_dokumentdatum = [], []
+    for booking in bookings:
+        # Ohne Fallback parsen: liefert das den Zeitraum, stammt er aus dem Titel.
+        start, _ = extract_service_period(booking.anlass, None)
+        eintrag = {
+            "booking_key": booking.booking_key,
+            "status": booking.status,
+            "kunde": booking.kunde,
+            "anlass": booking.anlass,
+            "service_start": booking.service_start.isoformat() if booking.service_start else None,
+            "service_end": booking.service_end.isoformat() if booking.service_end else None,
+        }
+        if start is not None:
+            aus_titel.append(eintrag)
+            continue
+        order = db.get(Order, booking.order_id) if booking.order_id else None
+        eintrag["auftragsdatum"] = order.order_date.isoformat() if order and order.order_date else None
+        eintrag["bexio_rohfelder_mit_datum"] = _date_like_raw_fields(order.raw if order else None)
+        aus_dokumentdatum.append(eintrag)
+
+    betroffen = len(aus_dokumentdatum)
+    gesamt = len(bookings)
+    return {
+        "status_filter": status,
+        "buchungen_gesamt": gesamt,
+        "zeitraum_aus_titel": len(aus_titel),
+        "zeitraum_nur_aus_dokumentdatum": betroffen,
+        "anteil_betroffen_pct": round(betroffen / gesamt * 100, 1) if gesamt else 0.0,
+        "betroffene_buchungen": aus_dokumentdatum[:limit],
     }
