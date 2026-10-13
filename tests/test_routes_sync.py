@@ -178,8 +178,11 @@ def test_dashboard_markiert_unsicheren_zeitraum(client):
     db.close()
 
     page = client.get("/?year=2026&status=beauftragt")
-    assert "zeitraum-unsicher" in page.text
+    # Warnzeichen als aufklappbarer Hinweis, nicht nur als Browser-Tooltip.
+    assert 'class="hinweis-icon"' in page.text
+    assert "Zeitraum unsicher" in page.text
     assert "kein Anlassdatum" in page.text
+    assert "in den Titel schreiben" in page.text
 
 
 def test_monatszeile_zeigt_umsatz_soll_und_ist(client):
@@ -306,3 +309,35 @@ def test_seitenleiste_erscheint_auf_dashboard_und_kalender(client):
         assert 'href="/kalender?year=2026"' in page.text
         # Die aktive Seite ist in der Navigation hervorgehoben.
         assert f'aktiv">{aktiv}</a>' in page.text
+
+
+def test_kalender_zeigt_erklaerung_zum_warnzeichen(client):
+    _kalender_buchung(client, booking_key="AU-101", service_period_source="document_date")
+
+    page = client.get("/kalender?year=2026")
+
+    # Das Warnzeichen liegt neben dem Link, nicht darin - eine Schaltflaeche im
+    # Anchor waere ungueltiges HTML und mit der Tastatur nicht erreichbar.
+    assert 'class="hinweis-icon"' in page.text
+    assert "Zeitraum unsicher" in page.text
+    assert page.text.index('class="kal-balken') < page.text.index('class="hinweis-icon"')
+
+
+def test_report_erklaert_auftrag_trotz_ablehnung(client):
+    import datetime as dt
+    from decimal import Decimal
+
+    from app.db import get_db
+    from app.models import Order, Quote
+
+    db = next(client.app.dependency_overrides[get_db]())
+    db.add(Quote(id=1, document_nr="AN-001", title="Anlass", quote_date=dt.date(2026, 2, 10),
+                 total=Decimal("3000"), kb_item_status_id=4, raw={}))
+    db.add(Order(id=9, document_nr="AU-009", source_quote_bexio_id=1, raw={}))
+    db.commit()
+    db.close()
+
+    page = client.get("/angebote/abgelehnt?year=2026")
+    assert "Auftrag trotz Ablehnung" in page.text
+    assert 'class="hinweis-icon"' in page.text
+

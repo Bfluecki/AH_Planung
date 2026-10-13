@@ -65,7 +65,17 @@
             <tbody>
                 {% for row in rows %}
                 <tr>
-                    <td class="text-col">{{ row.document_nr }}{% if row.hat_auftrag %} <span class="zeitraum-unsicher" title="Zu diesem abgelehnten Angebot existiert trotzdem ein Auftrag – entweder ist der Status in Bexio veraltet oder es wurde doch gebucht.">⚠</span>{% endif %}</td>
+                    <td class="text-col">{{ row.document_nr }}{% if row.hat_auftrag %} <span class="hinweis">
+                        <button type="button" class="hinweis-icon" aria-label="Warum ist diese Zeile markiert?">⚠</button>
+                        <span class="hinweis-text" role="tooltip">
+                            <strong>Auftrag trotz Ablehnung</strong>
+                            Zu diesem abgelehnten Angebot existiert in Bexio trotzdem ein Auftrag.
+                            Entweder ist der Angebotsstatus veraltet, oder der Anlass wurde doch
+                            noch gebucht.
+                            <em>Abhilfe: in Bexio den Status des Angebots richtigstellen und neu
+                            synchronisieren.</em>
+                        </span>
+                    </span>{% endif %}</td>
                     <td class="text-col">{{ row.quote_date.strftime('%d.%m.%Y') if row.quote_date else "" }}</td>
                     <td class="text-col">{{ row.kunde }}</td>
                     <td class="text-col">{{ row.anlass }}</td>

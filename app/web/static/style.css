@@ -99,14 +99,21 @@ section { margin-bottom: 2rem; }
 
 /* ---- Tabellen ---- */
 table {
-    border-collapse: collapse;
+    /* "separate" statt "collapse" und kein overflow:hidden - sonst beschneidet die
+       Tabelle aufklappende Hinweise (siehe .hinweis-text). Die runden Ecken
+       entstehen stattdessen an den Eckzellen. */
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
     background: var(--color-surface);
     font-size: 0.85rem;
     box-shadow: var(--shadow);
     border-radius: var(--radius);
-    overflow: hidden;
 }
+thead tr:first-child th:first-child { border-top-left-radius: var(--radius); }
+thead tr:first-child th:last-child { border-top-right-radius: var(--radius); }
+tbody tr:last-child td:first-child { border-bottom-left-radius: var(--radius); }
+tbody tr:last-child td:last-child { border-bottom-right-radius: var(--radius); }
 th, td {
     border-bottom: 1px solid var(--color-border);
     padding: 0.45rem 0.7rem;
@@ -415,3 +422,57 @@ button.primary:hover { background: var(--color-accent-dark); }
 .kal-woche.kal-leer { min-height: 0; padding: 0.1rem 0; }
 .kal-woche.kal-leer .kal-kw { font-size: 0.75rem; }
 .kal-woche.kal-leer .kal-zelle { min-height: 0.9rem; }
+
+/* ---- Hinweis-Popup (Warnzeichen mit Erklaerung) ---- */
+.hinweis { position: relative; display: inline-block; }
+.hinweis-icon {
+    background: none;
+    border: none;
+    padding: 0 0.1rem;
+    margin: 0;
+    font: inherit;
+    line-height: 1;
+    color: var(--color-negative);
+    cursor: help;
+}
+.hinweis-icon:hover { transform: scale(1.15); }
+.hinweis-text {
+    display: none;
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    top: calc(100% + 0.35rem);
+    width: 20rem;
+    max-width: min(20rem, 80vw);
+    background: var(--color-surface);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-negative);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 14px rgba(60, 45, 30, 0.18);
+    padding: 0.7rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: normal;
+    line-height: 1.45;
+    white-space: normal;
+    text-align: left;
+}
+/* Hover fuer die Maus, focus-within fuer Tastatur und Tippen auf Mobilgeraeten. */
+.hinweis:hover .hinweis-text,
+.hinweis:focus-within .hinweis-text { display: block; }
+.hinweis-text strong { display: block; color: var(--color-negative); margin-bottom: 0.25rem; }
+.hinweis-text em { display: block; margin-top: 0.45rem; font-style: normal; font-weight: 600; }
+.hinweis-text .hinweis-beispiel {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--color-muted);
+    font-size: 0.78rem;
+}
+/* Nahe am rechten Rand nach links ausklappen, damit nichts abgeschnitten wird. */
+td:nth-last-child(-n+4) .hinweis-text { left: auto; right: 0; }
+/* Balken und Warnzeichen teilen sich eine Rasterzelle und stehen nebeneinander.
+   Das Zeichen liegt bewusst neben dem Link, nicht darin - eine Schaltflaeche im
+   Anchor waere ungueltiges HTML und mit der Tastatur nicht erreichbar. */
+.kal-eintrag { display: flex; align-items: center; gap: 0.15rem; min-width: 0; }
+.kal-eintrag .kal-balken { flex: 1; min-width: 0; }
+.kal-eintrag .hinweis-icon { font-size: 0.8rem; }
