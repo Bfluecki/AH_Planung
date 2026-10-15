@@ -16,6 +16,7 @@ import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.domain.periods import extract_service_period
@@ -75,6 +76,32 @@ def extract_comment(*raws: dict | None) -> str:
     return ""
 
 
+def _jahresfilter(query, year: int | None):
+    """Angebote des Jahres - nach Angebotsdatum, wie im Report selbst.
+
+    Als eigene Funktion, damit Report und Navigationszaehler nicht auseinander-
+    laufen koennen: der Zaehler in der Leiste zeigte frueher den Gesamtbestand,
+    waehrend die Seite daneben nur das Planjahr auswies.
+    """
+    if year is None:
+        return query
+    return query.filter(
+        Quote.quote_date.isnot(None),
+        Quote.quote_date >= dt.date(year, 1, 1),
+        Quote.quote_date <= dt.date(year, 12, 31),
+    )
+
+
+def declined_quote_count(db: Session, status_ids: set[int], year: int | None = None) -> int:
+    """Anzahl abgelehnter Angebote - dieselbe Menge, die declined_quotes liefert."""
+    if not status_ids:
+        return 0
+    query = db.query(func.count(Quote.id)).filter(
+        Quote.kb_item_status_id.in_(sorted(status_ids))
+    )
+    return _jahresfilter(query, year).scalar() or 0
+
+
 def declined_quotes(
     db: Session, status_ids: set[int], year: int | None = None
 ) -> list[DeclinedQuote]:
@@ -88,8 +115,9 @@ def declined_quotes(
         return []
 
     quotes = (
-        db.query(Quote)
-        .filter(Quote.kb_item_status_id.in_(sorted(status_ids)))
+        _jahresfilter(
+            db.query(Quote).filter(Quote.kb_item_status_id.in_(sorted(status_ids))), year
+        )
         .order_by(Quote.quote_date.desc().nullslast(), Quote.id.desc())
         .all()
     )
@@ -103,8 +131,6 @@ def declined_quotes(
 
     rows: list[DeclinedQuote] = []
     for quote in quotes:
-        if year is not None and (quote.quote_date is None or quote.quote_date.year != year):
-            continue
         start, end = extract_service_period(quote.title, None)
         contact = contacts.get(quote.contact_id) if quote.contact_id else None
         order = orders_by_quote.get(quote.id)
