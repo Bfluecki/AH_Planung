@@ -308,7 +308,8 @@ def test_seitenleiste_erscheint_auf_dashboard_und_kalender(client):
         assert 'class="sidebar"' in page.text
         assert 'href="/kalender?year=2026"' in page.text
         # Die aktive Seite ist in der Navigation hervorgehoben.
-        assert f'aktiv"' in page.text and f'</span>{aktiv}</a>' in page.text
+        assert 'class="aktiv"' in page.text
+        assert f"<span>{aktiv}</span>" in page.text
         # Die Auswahl ist als aufklappbarer Baum aufgebaut.
         assert page.text.count('<details class="sidebar-group"') == 3
 

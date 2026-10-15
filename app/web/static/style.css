@@ -1,21 +1,23 @@
-/* Farben uebernommen von www.aarbergerhus.ch: Olivgruen, Taupe/Beige und ein
-   himbeerfarbenes Rot auf hellem Grund, dazu weisse Serifen-Ueberschriften in
-   Versalien. Die Werte sind am Erscheinungsbild der Website abgemessen. */
+/* Farben von www.aarbergerhus.ch (am Erscheinungsbild der Website abgemessen),
+   Aufbau und Luftigkeit nach dem Vorbild einer schlanken CRM-Oberflaeche: heller
+   Grund, Haarlinien statt Flaechen, Farbe nur dort, wo sie etwas bedeutet. */
 :root {
-    --color-bg: #f2efe9;          /* heller, warmer Grund (vom Taupe abgeleitet) */
+    --color-bg: #faf9f6;          /* heller, warmer Grund */
     --color-surface: #ffffff;
-    --color-fg: #1f1d1a;          /* fast schwarzer Fliesstext wie auf der Website */
-    --color-muted: #7d6e5c;       /* Taupe, fuer Text abgedunkelt */
+    --color-sidebar: #fdfdfa;     /* Navigationsleiste, eine Spur waermer als Weiss */
+    --color-fg: #1d1b18;
+    --color-muted: #8a8277;       /* Nebentext und Zaehler */
     --color-accent: #b53c4a;      /* Rot der Website */
     --color-accent-dark: #93303c;
     --color-olive: #788535;       /* Olivgruen der Website */
     --color-taupe: #aa906e;       /* Beige/Taupe der Website */
-    --color-positive: #5e6a2a;    /* Oliv, fuer Text abgedunkelt (Kontrast) */
+    --color-positive: #5e6a2a;
     --color-negative: #b53c4a;
-    --color-border: #e3ddd3;
-    --color-row-alt: #faf8f4;
-    --radius: 6px;
-    --shadow: 0 1px 3px rgba(40, 34, 26, 0.09);
+    --color-border: #ebe6dd;      /* Haarlinie */
+    --color-border-strong: #ddd6ca;
+    --color-row-alt: #fcfbf8;
+    --radius: 8px;
+    --shadow: 0 1px 2px rgba(40, 34, 26, 0.05);
 }
 
 * { box-sizing: border-box; }
@@ -41,8 +43,10 @@ h1, h2, h3 {
 h2 {
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 1.1rem;
-    color: var(--color-accent);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-muted);
+    margin-bottom: 0.7rem;
 }
 
 a { color: var(--color-accent); }
@@ -50,24 +54,26 @@ a { color: var(--color-accent); }
 /* ---- Kopfzeile / Navigation ---- */
 header {
     background: var(--color-surface);
-    border-bottom: 3px solid var(--color-accent);
-    padding: 1.25rem 2rem 1rem;
-    margin-bottom: 1.75rem;
-    box-shadow: var(--shadow);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.85rem 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
-header h1 { margin: 0 0 0.85rem; font-size: 1.55rem; }
-.brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.55rem; }
-.brand .brand-sub { font-family: Georgia, serif; font-size: 1.15rem; font-weight: 600; color: var(--color-taupe); }
-/* Jahr klar sichtbar hervorheben, damit erkennbar ist, welches Planjahr aktiv ist. */
+header h1 { margin: 0; font-size: 1.15rem; letter-spacing: 0.01em; }
+.brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
+.brand .brand-sub { font-family: Georgia, serif; font-size: 0.95rem; font-weight: 600; color: var(--color-taupe); }
 .brand .year-badge {
-    font-family: Georgia, serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #fff;
-    background: var(--color-accent);
-    padding: 0.1rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    background: #fbeef0;
+    padding: 0.1rem 0.5rem;
     border-radius: 999px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
 }
 
 nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
@@ -134,16 +140,19 @@ th, td {
 th.text-col, td.text-col { text-align: left; }
 tbody tr:nth-child(even) { background: var(--color-row-alt); }
 thead th {
-    /* Oliv statt Rot: die Website lebt vom Wechsel ihrer drei Farben. Rot bleibt
-       den Aktionen vorbehalten, Oliv traegt die Flaechen. */
-    background: var(--color-olive);
-    color: #fff;
-    font-family: Georgia, serif;
-    font-weight: 600;
+    /* Schlank statt gefuellt: eine kraeftige Linie traegt die Kopfzeile, die
+       Flaeche bleibt hell. Das haelt den Blick bei den Zahlen. */
+    background: var(--color-surface);
+    color: var(--color-muted);
+    border-bottom: 2px solid var(--color-olive);
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    font-weight: 700;
     vertical-align: bottom;
 }
 thead th small { font-weight: normal; opacity: 0.8; font-size: 0.75rem; }
-tfoot td { font-weight: bold; background: #efe9e0; border-top: 2px solid var(--color-taupe); }
+tfoot td { font-weight: 700; background: var(--color-row-alt); border-top: 2px solid var(--color-border-strong); }
 
 .positive { color: var(--color-positive); }
 .negative { color: var(--color-negative); }
@@ -161,14 +170,15 @@ tfoot td { font-weight: bold; background: #efe9e0; border-top: 2px solid var(--c
 .empty { color: var(--color-muted); font-style: italic; }
 
 /* ---- Aufklappbare Monate ---- */
-details.month { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); margin-bottom: 0.6rem; box-shadow: var(--shadow); }
+details.month { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); margin-bottom: 0.5rem; }
 details.month > summary {
-    cursor: pointer; padding: 0.7rem 1rem; font-family: Georgia, serif; font-size: 1.05rem;
-    font-weight: 600; color: var(--color-accent-dark); list-style: none;
+    cursor: pointer; padding: 0.6rem 1rem; font-size: 0.92rem;
+    font-weight: 600; color: var(--color-fg); list-style: none;
     display: flex; justify-content: space-between; align-items: center; gap: 1rem;
 }
+details.month[open] > summary { border-bottom: 1px solid var(--color-border); }
 details.month > summary::-webkit-details-marker { display: none; }
-details.month > summary::before { content: "▸"; color: var(--color-taupe); margin-right: 0.4rem; transition: transform 0.15s; }
+details.month > summary::before { content: "›"; color: var(--color-muted); margin-right: 0.45rem; font-size: 1.05rem; transition: transform 0.15s; }
 details.month[open] > summary::before { transform: rotate(90deg); }
 details.month > summary .month-meta { font-family: -apple-system, sans-serif; font-size: 0.8rem; font-weight: normal; color: var(--color-muted); }
 details.month .month-body { padding: 0 0.75rem 0.9rem; }
@@ -202,7 +212,19 @@ nav .status-filter button { margin-top: 0.5rem; }
 /* ---- Budget-Inline-Formular ---- */
 .budget-form { display: flex; gap: 0.3rem; align-items: center; justify-content: flex-end; }
 .budget-form input[type="text"] { width: 6rem; padding: 0.15rem 0.3rem; border: 1px solid var(--color-border); border-radius: 3px; font-size: 0.85rem; text-align: right; }
-.budget-form button { padding: 0.1rem 0.5rem; border: 1px solid var(--color-accent); border-radius: 3px; background: var(--color-surface); color: var(--color-accent); cursor: pointer; }
+/* Zwoelf gefuellte Knoepfe untereinander zoegen den Blick von den Zahlen ab -
+   deshalb dezent, und spezifisch genug, um die generische Regel fuer
+   Absende-Knoepfe zu uebersteuern. */
+.content .budget-form button[type="submit"] {
+    padding: 0.12rem 0.45rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 5px;
+    background: var(--color-surface);
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.content .budget-form button[type="submit"]:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
 /* ---- Formulare (Admin/Login) ---- */
 table.admin-form { border: none; box-shadow: none; background: transparent; margin-bottom: 1rem; }
@@ -281,167 +303,172 @@ button.primary:hover { background: var(--color-accent-dark); }
 .mix-bar { display: flex; width: 100%; height: 26px; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .mix-seg { height: 100%; min-width: 2px; }
 
-/* ---- Zweispaltiges Layout: Auswahlbaum links, Inhalt rechts ---- */
+/* ---- Zweispaltiges Layout: Navigationsleiste links, Inhalt rechts ---- */
 .layout {
     display: flex;
-    align-items: flex-start;
-    gap: 1.75rem;
+    align-items: stretch;
     max-width: 1700px;
     margin: 0 auto;
-    padding: 0 2rem;
 }
-.layout .content { padding: 0; margin: 0; flex: 1; min-width: 0; }
+.layout .content { padding: 0 2rem; margin: 0; flex: 1; min-width: 0; max-width: none; }
 
+/* Flach statt Karte: eine Haarlinie trennt, keine Schatten, kein Rahmen - so
+   wirkt die Leiste als Teil der Seite und nicht als aufgesetztes Element. */
 .sidebar {
-    flex: 0 0 15.5rem;
+    flex: 0 0 15rem;
+    align-self: flex-start;
     position: sticky;
-    top: 1.25rem;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(40, 34, 26, 0.08);
-    padding: 0.75rem;
+    top: 0;
+    /* Volle Fensterhoehe: die Leiste steht, der Inhalt scrollt daneben - sonst
+       bricht die Flaeche auf halber Hoehe ab und wirkt wie abgeschnitten. */
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--color-sidebar);
+    border-right: 1px solid var(--color-border);
+    padding: 0 0 1.5rem;
+}
+
+.marke { padding: 0.25rem 1.25rem 1.1rem; }
+.marke-name {
+    display: block;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-fg);
+    letter-spacing: 0.01em;
+}
+.marke-sub {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.64rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-muted);
 }
 
 /* ---- Navigation ---- */
-/* align-items und border ausdruecklich zuruecksetzen: die Seitenleiste ist ein
-   <nav> und erbt sonst die Kaestchen-Optik der Kopfzeilen-Navigation. */
-.sidebar-nav { display: flex; flex-direction: column; align-items: stretch; gap: 0.1rem; }
+.sidebar-nav { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
 .sidebar-nav a {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 0.7rem;
+    gap: 0.7rem;
+    padding: 0.62rem 1.25rem;
     border: none;
-    border-radius: 8px;
+    border-radius: 0;
+    border-left: 3px solid transparent;
     text-decoration: none;
     color: var(--color-fg);
-    font-size: 0.92rem;
-    transition: background 0.12s, color 0.12s;
-}
-.sidebar-nav a:hover { background: var(--color-bg); color: var(--color-accent); }
-.sidebar-nav a.aktiv {
-    background: var(--color-accent);
-    color: #fff;
-    font-weight: 600;
-    box-shadow: 0 1px 4px rgba(181, 60, 74, 0.3);
-}
-.nav-icon {
-    width: 1.1rem;
-    text-align: center;
-    opacity: 0.75;
     font-size: 0.9rem;
 }
-.sidebar-nav a.aktiv .nav-icon { opacity: 1; }
+.sidebar-nav a:hover { background: rgba(0, 0, 0, 0.025); }
+/* Aktiv: schmaler Akzentbalken am linken Rand statt gefuellter Flaeche. */
+.sidebar-nav a.aktiv {
+    background: #f7f2ec;
+    border-left-color: var(--color-accent);
+    font-weight: 600;
+}
+.sidebar-nav a .icon { flex: 0 0 auto; width: 1.05rem; height: 1.05rem; opacity: 0.55; }
+.sidebar-nav a.aktiv .icon { opacity: 1; color: var(--color-accent); }
+.sidebar-nav a span { flex: 1; min-width: 0; }
+.sidebar-nav a em,
+.sidebar-group > summary em {
+    font-style: normal;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+}
 
-/* ---- Aufklappbare Gruppen (der eigentliche Auswahlbaum) ---- */
-.sidebar-form { margin-top: 0.9rem; border-top: 1px solid var(--color-border); padding-top: 0.6rem; }
-.sidebar-group { border-radius: 8px; }
-.sidebar-group + .sidebar-group { margin-top: 0.1rem; }
+/* ---- Aufklappbare Gruppen ---- */
+.sidebar-form { margin-top: 1.4rem; }
+.gruppen-titel {
+    margin: 0 1.25rem 0.3rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-muted);
+}
 .sidebar-group > summary {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.7rem;
-    border-radius: 8px;
+    gap: 0.45rem;
+    padding: 0.45rem 1.25rem;
     cursor: pointer;
     list-style: none;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--color-muted);
+    font-size: 0.82rem;
+    color: var(--color-fg);
     user-select: none;
 }
 .sidebar-group > summary::-webkit-details-marker { display: none; }
 .sidebar-group > summary::before {
-    content: "▸";
-    font-size: 0.7rem;
-    color: var(--color-taupe);
+    content: "›";
+    font-size: 0.95rem;
+    color: var(--color-muted);
     transition: transform 0.15s;
 }
 .sidebar-group[open] > summary::before { transform: rotate(90deg); }
-.sidebar-group > summary:hover { background: var(--color-bg); color: var(--color-accent); }
-.gruppe-zahl {
-    margin-left: auto;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 999px;
-    padding: 0 0.4rem;
-    font-size: 0.7rem;
-    letter-spacing: 0;
-    color: var(--color-muted);
-}
-.group-body { padding: 0.15rem 0.7rem 0.6rem; }
+.sidebar-group > summary:hover { background: rgba(0, 0, 0, 0.025); }
+.sidebar-group > summary em { margin-left: auto; }
+.group-body { padding: 0.15rem 1.25rem 0.7rem 2rem; }
 
 .group-body input[type="search"] {
     width: 100%;
-    padding: 0.45rem 0.6rem;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 6px;
     font: inherit;
-    font-size: 0.88rem;
-    background: var(--color-bg);
-}
-.group-body input[type="search"]:focus {
-    outline: none;
-    border-color: var(--color-accent);
+    font-size: 0.85rem;
     background: var(--color-surface);
 }
+.group-body input[type="search"]:focus { outline: none; border-color: var(--color-accent); }
 
-.jahr-wechsler { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
-.jahr-wechsler strong { font-family: Georgia, serif; font-size: 1.25rem; color: var(--color-accent); }
+.jahr-wechsler { display: flex; align-items: center; justify-content: space-between; }
+.jahr-wechsler strong { font-family: Georgia, serif; font-size: 1.05rem; }
 .jahr-wechsler a {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.9rem;
-    height: 1.9rem;
+    width: 1.6rem;
+    height: 1.6rem;
     text-decoration: none;
-    color: var(--color-accent);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    font-size: 1.05rem;
-}
-.jahr-wechsler a:hover { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-
-.status-option {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0;
-    cursor: pointer;
+    color: var(--color-muted);
+    border: 1px solid var(--color-border-strong);
     border-radius: 6px;
+    font-size: 0.95rem;
 }
-.status-option:hover { background: var(--color-bg); }
+.jahr-wechsler a:hover { background: var(--color-surface); color: var(--color-accent); border-color: var(--color-accent); }
+
+.status-option { display: flex; align-items: center; gap: 0.45rem; padding: 0.22rem 0; cursor: pointer; }
 .status-option input { accent-color: var(--color-accent); }
 
 .sidebar-apply {
-    width: 100%;
-    margin-top: 0.8rem;
-    padding: 0.55rem;
+    display: block;
+    width: calc(100% - 2.5rem);
+    margin: 0.7rem 1.25rem 0;
+    padding: 0.45rem;
     background: var(--color-accent);
     color: #fff;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     font: inherit;
+    font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s;
 }
 .sidebar-apply:hover { background: var(--color-accent-dark); }
 .sidebar-reset {
     display: block;
     text-align: center;
-    margin-top: 0.55rem;
-    font-size: 0.82rem;
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
     color: var(--color-muted);
 }
 
-/* Schmale Bildschirme: Auswahl ueber den Inhalt legen statt daneben. */
+/* Schmale Bildschirme: Leiste ueber den Inhalt legen statt daneben. */
 @media (max-width: 900px) {
-    .layout { flex-direction: column; padding: 0 1rem; }
-    .sidebar { position: static; flex: 1 1 auto; width: 100%; }
+    .layout { flex-direction: column; }
+    .sidebar { position: static; flex: 1 1 auto; width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); }
+    .layout .content { padding: 1rem; }
 }
 
 /* ---- Belegungskalender ---- */
@@ -572,3 +599,39 @@ td:nth-last-child(-n+4) .hinweis-text { left: auto; right: 0; }
 /* Statuszeichen im Balken - traegt die Information auch dort, wo Farbe versagt:
    schmale Balken, Ausdruck, Farbsehschwaeche. */
 .kal-symbol { margin-right: 0.35rem; font-size: 0.95em; }
+
+/* ---- Schlanke Kopfzeile (Seiten mit Navigationsleiste) ----
+   Die Marke traegt die Leiste links; hier stehen nur noch Aktionen, rechtsbuendig
+   und als Text statt als Knopfreihe. */
+header.kopf-schlank {
+    justify-content: flex-end;
+    gap: 0.25rem;
+    padding: 0.6rem 2rem;
+    margin-bottom: 1.25rem;
+}
+header.kopf-schlank a,
+header.kopf-schlank button {
+    border: none;
+    background: none;
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    text-decoration: none;
+    cursor: pointer;
+}
+header.kopf-schlank a:hover,
+header.kopf-schlank button:hover { background: var(--color-bg); color: var(--color-accent); }
+header.kopf-schlank .btn-leise {
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-fg);
+}
+header.kopf-schlank .kopf-konto { color: var(--color-fg); font-weight: 500; }
+header.kopf-schlank .kopf-trenner {
+    width: 1px;
+    height: 1.1rem;
+    background: var(--color-border-strong);
+    margin: 0 0.4rem;
+}
+header.kopf-schlank .inline-form { display: inline; }
