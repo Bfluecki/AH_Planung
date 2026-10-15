@@ -17,13 +17,16 @@
     --color-border-strong: #ddd6ca;
     --color-row-alt: #fcfbf8;
 
-    /* Statusfarben: kraeftig und paarweise klar getrennt (geprueft auf Abstand
-       >= 25 im Lab-Raum und Kontrast >= 4.5 gegen weisse Schrift). Vier warme
-       Erdtoene liessen sich bei Gruenschwaeche nicht trennen - deshalb traegt
-       zusaetzlich ein Zeichen je Status die Information. */
-    --status-angebot: #7d6549;
+    /* Statusfarben. Angebot und Auftrag sind die beiden Status, die im Kalender
+       direkt nebeneinander stehen - deshalb steht dem warmen Ocker des Auftrags
+       jetzt ein kuehles Petrol gegenueber (Abstand 78.8 im Lab-Raum statt 32.6
+       bei den zwei Erdtoenen zuvor). Alle Paare liegen >= 45 auseinander und
+       halten Kontrast >= 4.5 gegen weisse Schrift. Bei Gruenschwaeche bleiben
+       Ocker/Gruen und Gruen/Rot nah beieinander - deshalb traegt zusaetzlich
+       ein Zeichen je Status die Information. */
+    --status-angebot: #3b6f94;
     --status-beauftragt: #98630f;
-    --status-verrechnet: #5f7a1f;
+    --status-verrechnet: #46762f;
     --status-storniert: #b53c4a;
     --radius: 8px;
     --shadow: 0 1px 2px rgba(40, 34, 26, 0.05);
@@ -189,11 +192,11 @@ tfoot td { font-weight: 700; background: var(--color-row-alt); border-top: 2px s
 }
 /* Das Zeichen vor dem Namen macht den Status auch ohne Farbe erkennbar. */
 .status::before { font-size: 0.85em; }
-.status-nur_angebot { color: var(--status-angebot); background: #f3efe8; }
+.status-nur_angebot { color: var(--status-angebot); background: #e8f0f6; }
 .status-nur_angebot::before { content: "○"; }
-.status-beauftragt { color: var(--status-beauftragt); background: #faefdc; }
+.status-beauftragt { color: var(--status-beauftragt); background: #fdf4e6; }
 .status-beauftragt::before { content: "◆"; }
-.status-verrechnet { color: var(--status-verrechnet); background: #eef2e0; }
+.status-verrechnet { color: var(--status-verrechnet); background: #e9f1e3; }
 .status-verrechnet::before { content: "●"; }
 .status-storniert { color: var(--status-storniert); background: #fbe9eb; }
 .status-storniert::before { content: "✕"; }
