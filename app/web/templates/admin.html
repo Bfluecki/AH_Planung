@@ -7,19 +7,13 @@
     <link rel="stylesheet" href="/static/style.css?v={{ asset_version() }}">
 </head>
 <body>
-    <header>
-        <div class="brand">
-            <h1>Aarbergerhus</h1>
-            <span class="brand-sub">Administration</span>
-        </div>
-        <nav>
-            <a href="/">&larr; Dashboard</a>
-            <a href="#benutzer">Benutzer</a>
-            <a href="#log">Log</a>
-            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
-        </nav>
+    <header class="kopf-schlank">
+        <a href="#benutzer">Benutzer</a>
+        <a href="#log">Log</a>
     </header>
 
+    <div class="layout">
+    {% include "_seitenleiste.html" %}
     <div class="content">
     {% if message %}
     <section>
@@ -280,6 +274,7 @@
             </tbody>
         </table>
     </section>
+    </div>
     </div>
 </body>
 </html>

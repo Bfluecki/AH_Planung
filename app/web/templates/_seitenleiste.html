@@ -1,50 +1,42 @@
 {% import "_makros.html" as makros %}
-{# Schlanke Navigationsleiste: Markenblock, Navigation mit Linien-Icons und
-   Zaehlern, darunter aufklappbare Gruppen fuer Planjahr, Status und Suche.
-   Erwartet: aktiv, ziel_url, year, all_statuses, selected_statuses,
-   default_statuses, search, zaehler (dict). #}
+{# Navigationsleiste aller Seiten. Erwartet den Satz aus app/web/navigation.py:
+   aktiv, ziel_url, mit_jahr, mit_filter, year, all_statuses, selected_statuses,
+   default_statuses, search, zaehler, current_user, is_admin. #}
 <aside class="sidebar">
     <div class="marke">
         <span class="marke-name">Aarbergerhus</span>
-        <span class="marke-sub">Umsatzplanung · {{ year }}</span>
+        <span class="marke-sub">Umsatzplanung</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Bereiche">
         <a href="/?year={{ year }}" class="{{ 'aktiv' if aktiv == 'dashboard' }}">
-            {{ makros.icon("dashboard") }}<span>Dashboard</span>
-            {% if zaehler.buchungen is defined %}<em>{{ zaehler.buchungen }}</em>{% endif %}
-        </a>
+            {{ makros.icon("dashboard") }}<span>Dashboard</span><em>{{ zaehler.buchungen }}</em></a>
         <a href="/kalender?year={{ year }}" class="{{ 'aktiv' if aktiv == 'kalender' }}">
-            {{ makros.icon("kalender") }}<span>Kalender</span>
-            {% if zaehler.anlaesse is defined %}<em>{{ zaehler.anlaesse }}</em>{% endif %}
-        </a>
+            {{ makros.icon("kalender") }}<span>Kalender</span><em>{{ zaehler.anlaesse }}</em></a>
         <a href="/auswertung?year={{ year }}" class="{{ 'aktiv' if aktiv == 'auswertung' }}">
-            {{ makros.icon("auswertung") }}<span>Auswertung</span>
-        </a>
+            {{ makros.icon("auswertung") }}<span>Auswertung</span></a>
         <a href="/angebote/abgelehnt?year={{ year }}" class="{{ 'aktiv' if aktiv == 'abgelehnt' }}">
             {{ makros.icon("abgelehnt") }}<span>Abgelehnte Angebote</span>
-            {% if zaehler.abgelehnt %}<em>{{ zaehler.abgelehnt }}</em>{% endif %}
-        </a>
+            {%- if zaehler.abgelehnt %}<em>{{ zaehler.abgelehnt }}</em>{% endif %}</a>
     </nav>
 
+    {% if mit_jahr %}
+    <p class="gruppen-titel">Planjahr</p>
+    <div class="jahr-wechsler">
+        <a href="{{ ziel_url }}?year={{ year - 1 }}" aria-label="Vorjahr">‹</a>
+        <strong>{{ year }}</strong>
+        <a href="{{ ziel_url }}?year={{ year + 1 }}" aria-label="Folgejahr">›</a>
+    </div>
+    {% endif %}
+
+    {% if mit_filter %}
     <form action="{{ ziel_url }}" method="get" class="sidebar-form" data-auto>
         {# Markiert eine bewusst abgeschickte Auswahl. Ohne das waere "nichts
            angehakt" nicht von "Seite zum ersten Mal geoeffnet" zu unterscheiden,
            und die Voreinstellung spraenge zurueck. #}
         <input type="hidden" name="filter" value="1">
+        <input type="hidden" name="year" value="{{ year }}">
         <p class="gruppen-titel">Auswahl</p>
-
-        <details class="sidebar-group" open>
-            <summary>Planjahr</summary>
-            <div class="group-body">
-                <div class="jahr-wechsler">
-                    <a href="{{ ziel_url }}?year={{ year - 1 }}" aria-label="Vorjahr">‹</a>
-                    <strong>{{ year }}</strong>
-                    <a href="{{ ziel_url }}?year={{ year + 1 }}" aria-label="Folgejahr">›</a>
-                </div>
-                <input type="hidden" name="year" value="{{ year }}">
-            </div>
-        </details>
 
         <details class="sidebar-group" open>
             <summary>Status<em>{{ selected_statuses|length }}</em></summary>
@@ -71,8 +63,22 @@
         <a href="{{ ziel_url }}?year={{ year }}" class="sidebar-reset">Auswahl zurücksetzen</a>
         {% endif %}
     </form>
+    {% endif %}
+
+    <p class="gruppen-titel">Verwaltung</p>
+    <nav class="sidebar-nav sidebar-nav-klein" aria-label="Verwaltung">
+        <a href="/hilfe" class="{{ 'aktiv' if aktiv == 'hilfe' }}">{{ makros.icon("hilfe") }}<span>Hilfe</span></a>
+        {% if is_admin %}<a href="/admin" class="{{ 'aktiv' if aktiv == 'admin' }}">{{ makros.icon("admin") }}<span>Administration</span></a>{% endif %}
+        <a href="/passwort" class="{{ 'aktiv' if aktiv == 'passwort' }}">{{ makros.icon("passwort") }}<span>Passwort</span></a>
+    </nav>
+
+    <div class="sidebar-konto">
+        <span class="konto-name">{{ current_user }}</span>
+        <a href="/logout">Abmelden</a>
+    </div>
 </aside>
 
+{% if mit_filter %}
 <script>
 // Auswahl sofort anwenden: ein Haken soll wirken, ohne dass man zusaetzlich
 // "Anwenden" drueckt. Ohne JavaScript bleibt der Knopf der Weg - deshalb
@@ -81,3 +87,4 @@ document.querySelectorAll('form[data-auto] input[type="checkbox"]').forEach(func
     feld.addEventListener('change', function () { feld.form.submit(); });
 });
 </script>
+{% endif %}

@@ -7,24 +7,11 @@
     <link rel="stylesheet" href="/static/style.css?v={{ asset_version() }}">
 </head>
 <body>
-    <header>
-        <div class="brand">
-            <h1>Aarbergerhus</h1>
-            <span class="brand-sub">Abgelehnte Angebote</span>
-            <span class="year-badge">{{ year }}</span>
-        </div>
-        <nav>
-            <a href="/?year={{ year }}">&larr; Dashboard</a>
-            <a href="/kalender?year={{ year }}">Kalender</a>
-            <a href="/angebote/abgelehnt?year={{ year - 1 }}">&larr; {{ year - 1 }}</a>
-            <a href="/angebote/abgelehnt?year={{ year + 1 }}">{{ year + 1 }} &rarr;</a>
-            <a href="/auswertung?year={{ year }}">Auswertung</a>
-            <a href="/hilfe">Hilfe</a>
-            {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
-            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
-        </nav>
+    <header class="kopf-schlank">
     </header>
 
+    <div class="layout">
+    {% include "_seitenleiste.html" %}
     <div class="content">
     <section>
         <h2>Übersicht {{ year }}</h2>
@@ -96,6 +83,7 @@
         Railway-Variable <code>QUOTE_DECLINED_STATUS_IDS</code>.</div>
         {% endif %}
     </section>
+    </div>
     </div>
 </body>
 </html>

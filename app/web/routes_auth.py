@@ -11,8 +11,11 @@ from sqlalchemy.orm import Session
 from app import auth
 from app.audit import log_action
 from app.auth import User, require_login
+from app.admin_config import get_effective_config
+from app.config import get_settings
 from app.db import get_db
 from app.web.assets import register as register_assets
+from app.web.navigation import nav_context
 
 router = APIRouter(tags=["auth"])
 templates = register_assets(Jinja2Templates(directory=str(Path(__file__).parent / "templates")))
@@ -49,17 +52,29 @@ def login_submit(
 
 
 @router.get("/passwort")
-def password_form(request: Request, user: User = Depends(require_login)):
+def password_form(
+    request: Request, db: Session = Depends(get_db), user: User = Depends(require_login)
+):
     return templates.TemplateResponse(
-        "passwort.html",
-        {
-            "request": request,
-            "current_user": user.username,
-            "error": None,
-            "success": False,
-            "forced": user.must_change_password,
-        },
+        "passwort.html", _passwort_kontext(request, db, user, error=None, success=False)
     )
+
+
+def _passwort_kontext(request, db, user, *, error, success) -> dict:
+    """Die Navigationsleiste erscheint nur, wenn der Wechsel freiwillig ist. Bei
+    erzwungenem Wechsel waere sie ein Schlupfloch: man koennte ihn umgehen."""
+    forced = user.must_change_password and not success
+    kontext = {
+        "request": request,
+        "current_user": user.username,
+        "error": error,
+        "success": success,
+        "forced": forced,
+    }
+    if not forced:
+        jahr = get_effective_config(db, get_settings()).current_planning_year
+        kontext.update(nav_context(db, user, jahr, "passwort", mit_jahr=False))
+    return kontext
 
 
 @router.post("/passwort")
@@ -74,13 +89,7 @@ def password_change(
     def render(error: str | None = None, success: bool = False):
         return templates.TemplateResponse(
             "passwort.html",
-            {
-                "request": request,
-                "current_user": user.username,
-                "error": error,
-                "success": success,
-                "forced": user.must_change_password and not success,
-            },
+            _passwort_kontext(request, db, user, error=error, success=success),
             status_code=200 if success else 400,
         )
 

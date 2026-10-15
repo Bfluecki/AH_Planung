@@ -35,6 +35,7 @@ from app.models import (
     Quote,
 )
 from app.web.flash import pop_flash
+from app.web.navigation import nav_context
 from app.web.formatting import swisstime
 from app.web.assets import register as register_assets
 
@@ -62,6 +63,7 @@ def _context(
     token = db.get(OAuthToken, 1)
     return {
         "request": request,
+        **nav_context(db, user, effective.current_planning_year, "admin", mit_jahr=False),
         "message": message,
         "message_kind": message_kind,
         "effective": effective,

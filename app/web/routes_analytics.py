@@ -27,6 +27,7 @@ from app.domain.analytics import (
     year_figures,
 )
 from app.web.formatting import swissnum
+from app.web.navigation import nav_context
 from app.web.assets import register as register_assets
 
 router = APIRouter(tags=["analytics"])
@@ -249,7 +250,7 @@ def auswertung(
         "auswertung.html",
         {
             "request": request,
-            "current_user": user.username,
+            **nav_context(db, user, current, "auswertung", ziel_url="/auswertung"),
             "year": current,
             "years": years,
             "chart": chart,
@@ -302,7 +303,6 @@ def abgelehnte_angebote(
             "mit_begruendung": sum(1 for r in rows if r.begruendung),
             "status_ids": sorted(status_ids),
             "format_zeitraum": format_zeitraum,
-            "current_user": user.username,
-            "is_admin": user.role == ROLE_ADMIN,
+            **nav_context(db, user, year, "abgelehnt", ziel_url="/angebote/abgelehnt"),
         },
     )
