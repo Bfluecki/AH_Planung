@@ -179,3 +179,13 @@ def test_leere_statusmenge_zeigt_nichts_none_zeigt_alles(db_session):
     alle = [e for w in calendar_weeks(db_session, 2026, None) for e in w.entries]
     assert {e.booking_key for e in alle} == {"AU-030", "RE-030"}
 
+
+def test_statuszeichen_sind_paarweise_verschieden_und_gut_unterstuetzt():
+    """Ein Zeichen, das die Schrift nicht kennt, faellt auf ein Ersatzzeichen
+    zurueck und traegt dann nichts - deshalb nur gaengige geometrische Formen."""
+    from app.domain.week_calendar import STATUS_SYMBOLS
+
+    assert len(set(STATUS_SYMBOLS.values())) == len(STATUS_SYMBOLS)
+    # Halbgefuellte Kreise (U+25D0 ff.) fehlen in vielen Schriften.
+    assert not any("\u25d0" <= z <= "\u25d7" for z in STATUS_SYMBOLS.values())
+

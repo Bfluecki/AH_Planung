@@ -16,6 +16,15 @@
     --color-border: #ebe6dd;      /* Haarlinie */
     --color-border-strong: #ddd6ca;
     --color-row-alt: #fcfbf8;
+
+    /* Statusfarben: kraeftig und paarweise klar getrennt (geprueft auf Abstand
+       >= 25 im Lab-Raum und Kontrast >= 4.5 gegen weisse Schrift). Vier warme
+       Erdtoene liessen sich bei Gruenschwaeche nicht trennen - deshalb traegt
+       zusaetzlich ein Zeichen je Status die Information. */
+    --status-angebot: #7d6549;
+    --status-beauftragt: #98630f;
+    --status-verrechnet: #5f7a1f;
+    --status-storniert: #b53c4a;
     --radius: 8px;
     --shadow: 0 1px 2px rgba(40, 34, 26, 0.05);
 }
@@ -165,11 +174,29 @@ tfoot td { font-weight: 700; background: var(--color-row-alt); border-top: 2px s
 .negative { color: var(--color-negative); }
 
 /* ---- Status-Badges ---- */
-.status { padding: 0.12rem 0.45rem; border-radius: 10px; font-size: 0.72rem; background: #eee; white-space: nowrap; }
-.status-verrechnet { background: #e9eddb; color: var(--color-positive); }
-.status-beauftragt { background: #f3ece2; color: #8a6f52; }
-.status-nur_angebot { background: #eceae5; color: var(--color-muted); }
-.status-storniert { background: #f7e4e6; color: var(--color-negative); }
+/* Chips: kraeftige Schrift auf hellem Grund derselben Farbe plus farbiger Rand -
+   das traegt deutlich weiter als ein blasses Pastell. */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+/* Das Zeichen vor dem Namen macht den Status auch ohne Farbe erkennbar. */
+.status::before { font-size: 0.85em; }
+.status-nur_angebot { color: var(--status-angebot); background: #f3efe8; }
+.status-nur_angebot::before { content: "○"; }
+.status-beauftragt { color: var(--status-beauftragt); background: #faefdc; }
+.status-beauftragt::before { content: "◆"; }
+.status-verrechnet { color: var(--status-verrechnet); background: #eef2e0; }
+.status-verrechnet::before { content: "●"; }
+.status-storniert { color: var(--status-storniert); background: #fbe9eb; }
+.status-storniert::before { content: "✕"; }
 .linked-heuristic { color: var(--color-taupe); }
 .linked-reference { color: var(--color-positive); }
 .linked-none { color: #b0a897; }
@@ -516,19 +543,13 @@ button.primary:hover { background: var(--color-accent-dark); }
     border: 1px solid rgba(0, 0, 0, 0.12);
 }
 .kal-balken:hover { filter: brightness(1.12); }
-/* Farben je Status aus der Markenpalette, klar unterscheidbar auch bei
-   Rot-Gruen-Schwaeche. Angebote als Umriss statt gefuellt: noch nicht fest
-   gebucht - das unterscheidet sie auf einen Blick von beauftragt, obwohl beide
-   im selben Farbbereich liegen. */
-.kal-nur_angebot {
-    background: var(--color-surface);
-    color: #6f6253;
-    border: 1px dashed var(--color-taupe);
-}
-.kal-nur_angebot:hover { background: #f6f2ec; }
-.kal-beauftragt { background: var(--color-taupe); }
-.kal-verrechnet { background: var(--color-olive); }
-.kal-storniert { background: var(--color-accent); }
+/* Farben je Status aus denselben Variablen wie die Chips - gefuellt und
+   kraeftig, damit die Balken im Jahresraster auf Anhieb auseinanderzuhalten
+   sind. Das Zeichen im Balken traegt die Information zusaetzlich. */
+.kal-nur_angebot { background: var(--status-angebot); }
+.kal-beauftragt { background: var(--status-beauftragt); }
+.kal-verrechnet { background: var(--status-verrechnet); }
+.kal-storniert { background: var(--status-storniert); }
 /* Laeuft der Anlass ueber den Wochenrand hinaus, Kante dort offen zeichnen. */
 .kal-vorher { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-style: dashed; }
 .kal-nachher { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-style: dashed; }

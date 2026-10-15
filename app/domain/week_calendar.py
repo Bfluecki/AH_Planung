@@ -20,7 +20,7 @@ WEEKDAY_NAMES = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 # schwer zu treffen, im Ausdruck weg und fuer Farbsehschwaeche unzuverlaessig.
 STATUS_SYMBOLS = {
     "nur_angebot": "○",
-    "beauftragt": "◐",
+    "beauftragt": "◆",
     "verrechnet": "●",
     "storniert": "✕",
 }
