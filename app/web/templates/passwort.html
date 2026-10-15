@@ -7,7 +7,13 @@
     <link rel="stylesheet" href="/static/style.css?v={{ asset_version() }}">
 </head>
 <body>
-    <div class="login-wrap">
+{% if not forced %}
+    <header class="kopf-schlank"></header>
+    <div class="layout">
+    {% include "_seitenleiste.html" %}
+    <div class="content">
+{% endif %}
+    <div class="login-wrap{{ ' login-wrap-inline' if not forced }}">
         <h1>Passwort ändern</h1>
         <p class="brand-sub" style="color:var(--color-gold);font-style:italic;">{{ current_user }}</p>
         {% if success %}
@@ -35,5 +41,9 @@
         {% endif %}
         {% endif %}
     </div>
+{% if not forced %}
+    </div>
+    </div>
+{% endif %}
 </body>
 </html>

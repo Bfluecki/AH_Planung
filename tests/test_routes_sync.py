@@ -310,8 +310,11 @@ def test_seitenleiste_erscheint_auf_dashboard_und_kalender(client):
         # Die aktive Seite ist in der Navigation hervorgehoben.
         assert 'class="aktiv"' in page.text
         assert f"<span>{aktiv}</span>" in page.text
-        # Die Auswahl ist als aufklappbarer Baum aufgebaut.
-        assert page.text.count('<details class="sidebar-group"') == 3
+        # Status und Suche sind aufklappbar; das Planjahr steht als eigener Block.
+        assert page.text.count('<details class="sidebar-group"') == 2
+        assert 'class="jahr-wechsler"' in page.text
+        # Verwaltung und Konto gehoeren auf jede Seite.
+        assert 'href="/hilfe"' in page.text and 'href="/logout"' in page.text
 
 
 def test_kalender_zeigt_erklaerung_zum_warnzeichen(client):
@@ -441,3 +444,33 @@ def test_dashboard_verhaelt_sich_bei_leerer_auswahl_gleich(client):
     assert "Turnverein" not in client.get("/?filter=1&year=2026").text
     assert "Turnverein" in client.get("/?year=2026").text
 
+
+
+def test_jede_seite_traegt_dieselbe_navigationsleiste(client):
+    """Ohne das faellt beim Wechsel zwischen den Seiten das Geruest weg."""
+    seiten = ["/?year=2026", "/kalender?year=2026", "/auswertung?year=2026",
+              "/angebote/abgelehnt?year=2026", "/hilfe", "/passwort"]
+    for url in seiten:
+        page = client.get(url)
+        assert page.status_code == 200, url
+        assert 'class="sidebar"' in page.text, url
+        assert 'class="layout"' in page.text, url
+        # Marke, Bereiche und Konto gehoeren ueberall dazu.
+        assert 'class="marke-name"' in page.text, url
+        assert 'href="/kalender?year=2026"' in page.text or "/kalender" in page.text, url
+        assert 'href="/logout"' in page.text, url
+
+
+def test_erzwungener_passwortwechsel_zeigt_keine_navigation(client):
+    """Mit Navigation waere der Zwang umgehbar - man klickte einfach weg."""
+    from app.db import get_db
+    from app.auth import User
+
+    db = next(client.app.dependency_overrides[get_db]())
+    db.query(User).filter_by(username="admin").one().must_change_password = True
+    db.commit()
+    db.close()
+
+    page = client.get("/passwort")
+    assert "Passwort ändern" in page.text
+    assert 'class="sidebar"' not in page.text

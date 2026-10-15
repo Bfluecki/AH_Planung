@@ -7,16 +7,10 @@
     <link rel="stylesheet" href="/static/style.css?v={{ asset_version() }}">
 </head>
 <body>
-    <header>
-        <div class="brand">
-            <h1>Aarbergerhus</h1>
-            <span class="brand-sub">Hilfe & Erklärung</span>
-        </div>
-        <nav>
-            <a href="/">&larr; Zurück zum Dashboard</a>
-        </nav>
-    </header>
+    <header class="kopf-schlank"></header>
 
+    <div class="layout">
+    {% include "_seitenleiste.html" %}
     <div class="content doc">
         <p>Diese Seite erklärt, wie das Planungstool die Zahlen berechnet – damit alle
         Anwenderinnen und Anwender die Auswertungen richtig interpretieren.</p>
@@ -186,6 +180,7 @@
         bei der <strong>ersten Anmeldung automatisch aufgefordert, ein eigenes Passwort zu setzen</strong>.
         Danach lässt sich das Passwort jederzeit über <strong>Passwort</strong> in der Navigation
         ändern (aktuelles Passwort und zweimal das neue, mindestens 8 Zeichen).</p>
+    </div>
     </div>
 </body>
 </html>

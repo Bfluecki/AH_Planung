@@ -49,6 +49,13 @@ h2 {
     margin-bottom: 0.7rem;
 }
 
+h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-fg);
+    letter-spacing: 0;
+}
+
 a { color: var(--color-accent); }
 
 /* ---- Kopfzeile / Navigation ---- */
@@ -280,6 +287,7 @@ button.primary:hover { background: var(--color-accent-dark); }
 
 /* ---- Dokumentation ---- */
 .doc { max-width: 900px; }
+.doc { max-width: 60rem; }
 .doc h2 { border-bottom: 2px solid var(--color-taupe); padding-bottom: 0.3rem; margin-top: 2rem; }
 .doc h3 { margin-top: 1.5rem; }
 .doc table { font-size: 0.9rem; margin: 1rem 0; }
@@ -379,9 +387,9 @@ button.primary:hover { background: var(--color-accent-dark); }
 }
 
 /* ---- Aufklappbare Gruppen ---- */
-.sidebar-form { margin-top: 1.4rem; }
+.sidebar-form { margin-top: 0; }
 .gruppen-titel {
-    margin: 0 1.25rem 0.3rem;
+    margin: 1.3rem 1.25rem 0.35rem;
     font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -635,3 +643,27 @@ header.kopf-schlank .kopf-trenner {
     margin: 0 0.4rem;
 }
 header.kopf-schlank .inline-form { display: inline; }
+
+/* Zweite Navigationsgruppe (Verwaltung) etwas leiser als die Bereiche. */
+.sidebar-nav-klein a { font-size: 0.85rem; color: var(--color-muted); }
+.sidebar-nav-klein a:hover { color: var(--color-accent); }
+.sidebar-nav-klein a.aktiv { color: var(--color-fg); }
+
+/* Konto am Fuss der Leiste. */
+.sidebar-konto {
+    margin-top: 1.4rem;
+    padding: 0.8rem 1.25rem 0;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.8rem;
+}
+.sidebar-konto .konto-name { display: block; color: var(--color-fg); font-weight: 500; }
+.sidebar-konto a { color: var(--color-muted); text-decoration: none; }
+.sidebar-konto a:hover { color: var(--color-accent); text-decoration: underline; }
+
+/* Planjahr als eigener Block statt aufklappbarer Gruppe. */
+.sidebar > .jahr-wechsler { padding: 0 1.25rem; }
+
+/* Leere schlanke Kopfzeile nimmt keinen Platz weg. */
+header.kopf-schlank:empty { padding: 0; margin: 0; border-bottom: none; }
+/* Passwortseite innerhalb des Layouts: linksbuendig statt zentriert auf leerer Seite. */
+.login-wrap-inline { margin: 0; max-width: 26rem; }

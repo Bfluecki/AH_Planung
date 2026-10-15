@@ -32,6 +32,7 @@ from app.domain.soll_ist import (
     STATUS_VERRECHNET,
 )
 from app.web.flash import pop_flash
+from app.web.navigation import nav_context
 from app.web.formatting import swissnum
 from app.web.assets import register as register_assets
 
@@ -52,40 +53,6 @@ DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET]
 # Der Kalender ist ein Planungsinstrument: er zeigt von Haus aus, was noch
 # ansteht. Verrechnetes (= Vergangenheit) ist ueber den Filter zuschaltbar.
 CALENDAR_DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT]
-
-
-def _navigations_zaehler(db: Session, year: int, rows_by_month=None) -> dict:
-    """Kennzahlen neben den Navigationspunkten - zeigen auf einen Blick, wo etwas
-    liegt, ohne die Seite zu wechseln."""
-    from app.models import Booking, MonthlyAllocation, Quote
-
-    buchungen = (
-        db.query(func.count(func.distinct(MonthlyAllocation.booking_id)))
-        .filter(MonthlyAllocation.year == year)
-        .scalar()
-        or 0
-    )
-    anlaesse = (
-        db.query(func.count(Booking.id))
-        .filter(
-            Booking.service_start.isnot(None),
-            Booking.service_start <= dt.date(year, 12, 31),
-            Booking.service_end >= dt.date(year, 1, 1),
-        )
-        .scalar()
-        or 0
-    )
-    status_ids = get_settings().quote_declined_status_id_set
-    abgelehnt = 0
-    if status_ids:
-        abgelehnt = (
-            db.query(func.count(Quote.id))
-            .filter(Quote.kb_item_status_id.in_(sorted(status_ids)))
-            .filter(Quote.quote_date.isnot(None))
-            .scalar()
-            or 0
-        )
-    return {"buchungen": buchungen, "anlaesse": anlaesse, "abgelehnt": abgelehnt}
 
 
 def _gewaehlte_status(status: list[str] | None, filter_aktiv: str, vorgabe: list[str]) -> set[str]:
@@ -132,21 +99,30 @@ def dashboard(
             "year_summary": year_summary,
             "rows_by_month": rows_by_month,
             "month_names": MONTH_NAMES_DE,
-            "all_statuses": ALL_STATUSES,
-            "selected_statuses": selected_statuses,
-            "default_statuses": set(DEFAULT_STATUSES),
-            "zaehler": _navigations_zaehler(db, year),
-            "search": search,
-            "current_user": user.username,
-            "is_admin": user.role == ROLE_ADMIN,
             "flash": pop_flash(request),
+            **nav_context(
+                db, user, year, "dashboard",
+                ziel_url="/", mit_filter=True,
+                selected_statuses=selected_statuses,
+                default_statuses=set(DEFAULT_STATUSES),
+                search=search,
+            ),
         },
     )
 
 
 @router.get("/hilfe")
-def hilfe(request: Request, user: User = Depends(require_login)):
-    return templates.TemplateResponse("hilfe.html", {"request": request})
+def hilfe(
+    request: Request,
+    year: int | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_login),
+):
+    year = year or get_effective_config(db, get_settings()).current_planning_year
+    return templates.TemplateResponse(
+        "hilfe.html",
+        {"request": request, **nav_context(db, user, year, "hilfe", mit_jahr=False)},
+    )
 
 
 @router.post("/budget/save")
@@ -199,12 +175,12 @@ def kalender(
             "zahlen": calendar_summary(wochen),
             "weekday_names": WEEKDAY_NAMES,
             "status_symbols": STATUS_SYMBOLS,
-            "all_statuses": ALL_STATUSES,
-            "selected_statuses": selected_statuses,
-            "default_statuses": set(CALENDAR_DEFAULT_STATUSES),
-            "zaehler": _navigations_zaehler(db, year),
-            "search": search,
-            "current_user": user.username,
-            "is_admin": user.role == ROLE_ADMIN,
+            **nav_context(
+                db, user, year, "kalender",
+                ziel_url="/kalender", mit_filter=True,
+                selected_statuses=selected_statuses,
+                default_statuses=set(CALENDAR_DEFAULT_STATUSES),
+                search=search,
+            ),
         },
     )
