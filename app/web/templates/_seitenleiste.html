@@ -1,18 +1,30 @@
-{# Auswahlbaum von Dashboard und Kalender: Navigation oben, darunter aufklappbare
-   Gruppen fuer Planjahr, Status und Suche. Die Gruppen sind <details> - damit ist
-   der Baum ohne JavaScript bedienbar und merkt sich seinen Zustand im Markup.
-   Erwartet: aktiv ("dashboard"|"kalender"), ziel_url, year, all_statuses,
-   selected_statuses, default_statuses, search. #}
+{% import "_makros.html" as makros %}
+{# Schlanke Navigationsleiste: Markenblock, Navigation mit Linien-Icons und
+   Zaehlern, darunter aufklappbare Gruppen fuer Planjahr, Status und Suche.
+   Erwartet: aktiv, ziel_url, year, all_statuses, selected_statuses,
+   default_statuses, search, zaehler (dict). #}
 <aside class="sidebar">
+    <div class="marke">
+        <span class="marke-name">Aarbergerhus</span>
+        <span class="marke-sub">Umsatzplanung · {{ year }}</span>
+    </div>
+
     <nav class="sidebar-nav" aria-label="Bereiche">
         <a href="/?year={{ year }}" class="{{ 'aktiv' if aktiv == 'dashboard' }}">
-            <span class="nav-icon" aria-hidden="true">▤</span>Dashboard</a>
+            {{ makros.icon("dashboard") }}<span>Dashboard</span>
+            {% if zaehler.buchungen is defined %}<em>{{ zaehler.buchungen }}</em>{% endif %}
+        </a>
         <a href="/kalender?year={{ year }}" class="{{ 'aktiv' if aktiv == 'kalender' }}">
-            <span class="nav-icon" aria-hidden="true">▦</span>Kalender</a>
-        <a href="/auswertung?year={{ year }}">
-            <span class="nav-icon" aria-hidden="true">◴</span>Auswertung</a>
-        <a href="/angebote/abgelehnt?year={{ year }}">
-            <span class="nav-icon" aria-hidden="true">✕</span>Abgelehnte Angebote</a>
+            {{ makros.icon("kalender") }}<span>Kalender</span>
+            {% if zaehler.anlaesse is defined %}<em>{{ zaehler.anlaesse }}</em>{% endif %}
+        </a>
+        <a href="/auswertung?year={{ year }}" class="{{ 'aktiv' if aktiv == 'auswertung' }}">
+            {{ makros.icon("auswertung") }}<span>Auswertung</span>
+        </a>
+        <a href="/angebote/abgelehnt?year={{ year }}" class="{{ 'aktiv' if aktiv == 'abgelehnt' }}">
+            {{ makros.icon("abgelehnt") }}<span>Abgelehnte Angebote</span>
+            {% if zaehler.abgelehnt %}<em>{{ zaehler.abgelehnt }}</em>{% endif %}
+        </a>
     </nav>
 
     <form action="{{ ziel_url }}" method="get" class="sidebar-form" data-auto>
@@ -20,20 +32,22 @@
            angehakt" nicht von "Seite zum ersten Mal geoeffnet" zu unterscheiden,
            und die Voreinstellung spraenge zurueck. #}
         <input type="hidden" name="filter" value="1">
+        <p class="gruppen-titel">Auswahl</p>
+
         <details class="sidebar-group" open>
             <summary>Planjahr</summary>
             <div class="group-body">
                 <div class="jahr-wechsler">
-                    <a href="{{ ziel_url }}?year={{ year - 1 }}" title="{{ year - 1 }}" aria-label="Vorjahr">‹</a>
+                    <a href="{{ ziel_url }}?year={{ year - 1 }}" aria-label="Vorjahr">‹</a>
                     <strong>{{ year }}</strong>
-                    <a href="{{ ziel_url }}?year={{ year + 1 }}" title="{{ year + 1 }}" aria-label="Folgejahr">›</a>
+                    <a href="{{ ziel_url }}?year={{ year + 1 }}" aria-label="Folgejahr">›</a>
                 </div>
                 <input type="hidden" name="year" value="{{ year }}">
             </div>
         </details>
 
         <details class="sidebar-group" open>
-            <summary>Status<span class="gruppe-zahl">{{ selected_statuses|length }}</span></summary>
+            <summary>Status<em>{{ selected_statuses|length }}</em></summary>
             <div class="group-body">
                 {% for s in all_statuses %}
                 <label class="status-option">
@@ -45,10 +59,10 @@
         </details>
 
         <details class="sidebar-group" {{ "open" if search else "" }}>
-            <summary>Suche{% if search %}<span class="gruppe-zahl">1</span>{% endif %}</summary>
+            <summary>Suche{% if search %}<em>1</em>{% endif %}</summary>
             <div class="group-body">
-                <input type="search" name="q" value="{{ search }}" placeholder="Kunde oder Anlass"
-                       aria-label="Nach Kunde oder Anlass suchen">
+                <input type="search" name="q" value="{{ search }}" placeholder="Kunde, Anlass oder Nummer"
+                       aria-label="Nach Kunde, Anlass oder Buchungsnummer suchen">
             </div>
         </details>
 

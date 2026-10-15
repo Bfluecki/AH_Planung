@@ -1,6 +1,7 @@
 """Leichtes serverseitig gerendertes Dashboard (Konzept Abschnitt 6, Tech-Stack-Empfehlung)."""
 from __future__ import annotations
 
+import datetime as dt
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urlencode
@@ -8,6 +9,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.admin_config import get_effective_config
@@ -50,6 +52,40 @@ DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET]
 # Der Kalender ist ein Planungsinstrument: er zeigt von Haus aus, was noch
 # ansteht. Verrechnetes (= Vergangenheit) ist ueber den Filter zuschaltbar.
 CALENDAR_DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT]
+
+
+def _navigations_zaehler(db: Session, year: int, rows_by_month=None) -> dict:
+    """Kennzahlen neben den Navigationspunkten - zeigen auf einen Blick, wo etwas
+    liegt, ohne die Seite zu wechseln."""
+    from app.models import Booking, MonthlyAllocation, Quote
+
+    buchungen = (
+        db.query(func.count(func.distinct(MonthlyAllocation.booking_id)))
+        .filter(MonthlyAllocation.year == year)
+        .scalar()
+        or 0
+    )
+    anlaesse = (
+        db.query(func.count(Booking.id))
+        .filter(
+            Booking.service_start.isnot(None),
+            Booking.service_start <= dt.date(year, 12, 31),
+            Booking.service_end >= dt.date(year, 1, 1),
+        )
+        .scalar()
+        or 0
+    )
+    status_ids = get_settings().quote_declined_status_id_set
+    abgelehnt = 0
+    if status_ids:
+        abgelehnt = (
+            db.query(func.count(Quote.id))
+            .filter(Quote.kb_item_status_id.in_(sorted(status_ids)))
+            .filter(Quote.quote_date.isnot(None))
+            .scalar()
+            or 0
+        )
+    return {"buchungen": buchungen, "anlaesse": anlaesse, "abgelehnt": abgelehnt}
 
 
 def _gewaehlte_status(status: list[str] | None, filter_aktiv: str, vorgabe: list[str]) -> set[str]:
@@ -99,6 +135,7 @@ def dashboard(
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,
             "default_statuses": set(DEFAULT_STATUSES),
+            "zaehler": _navigations_zaehler(db, year),
             "search": search,
             "current_user": user.username,
             "is_admin": user.role == ROLE_ADMIN,
@@ -165,6 +202,7 @@ def kalender(
             "all_statuses": ALL_STATUSES,
             "selected_statuses": selected_statuses,
             "default_statuses": set(CALENDAR_DEFAULT_STATUSES),
+            "zaehler": _navigations_zaehler(db, year),
             "search": search,
             "current_user": user.username,
             "is_admin": user.role == ROLE_ADMIN,

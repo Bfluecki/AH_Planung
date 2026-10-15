@@ -7,23 +7,17 @@
     <link rel="stylesheet" href="/static/style.css?v={{ asset_version() }}">
 </head>
 <body>
-    <header>
-        <div class="brand">
-            <h1>Aarbergerhus</h1>
-            <span class="brand-sub">Umsatzplanung</span>
-            <span class="year-badge">{{ year }}</span>
-        </div>
-        <nav>
-            <a href="/export/{{ year }}.xlsx" class="button">Excel-Export</a>
-            <form action="/sync/run" method="post" class="inline-form">
-                <input type="hidden" name="redirect_to" value="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}{% if search %}&q={{ search|urlencode }}{% endif %}">
-                <button type="submit">Jetzt synchronisieren</button>
-            </form>
-            <a href="/hilfe">Hilfe</a>
-            {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
-            <a href="/passwort">Passwort</a>
-            {% if current_user %}<a href="/logout">Abmelden ({{ current_user }})</a>{% endif %}
-        </nav>
+    <header class="kopf-schlank">
+        <form action="/sync/run" method="post" class="inline-form">
+            <input type="hidden" name="redirect_to" value="/?year={{ year }}{% for s in selected_statuses %}&status={{ s }}{% endfor %}{% if search %}&q={{ search|urlencode }}{% endif %}">
+            <button type="submit" class="btn-leise">Jetzt synchronisieren</button>
+        </form>
+        <a href="/export/{{ year }}.xlsx" class="btn-leise">Excel-Export</a>
+        <span class="kopf-trenner"></span>
+        <a href="/hilfe">Hilfe</a>
+        {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+        <a href="/passwort">Passwort</a>
+        {% if current_user %}<a href="/logout" class="kopf-konto">{{ current_user }} · Abmelden</a>{% endif %}
     </header>
 
     <div class="layout">
