@@ -8,7 +8,12 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import Settings
 from app.db import Base
-from app.domain.quotes import declined_quotes, extract_comment, quote_status_overview
+from app.domain.quotes import (
+    declined_quote_count,
+    declined_quotes,
+    extract_comment,
+    quote_status_overview,
+)
 from app.models import Contact, Order, Quote
 
 
@@ -105,3 +110,43 @@ def test_konfiguration_der_abgelehnt_status():
     # Unsinnige Eingaben duerfen den Report nicht sprengen.
     assert Settings(quote_declined_status_ids="4,,x").quote_declined_status_id_set == {4}
     assert Settings(quote_declined_status_ids="").quote_declined_status_id_set == set()
+
+
+def test_zaehler_der_leiste_zeigt_dasselbe_jahr_wie_der_report(db_session):
+    """Die Leiste zeigte den Gesamtbestand, die Seite daneben nur das Planjahr -
+    zwei Zahlen fuer dieselbe Sache, die sich widersprachen."""
+    db_session.add(Contact(id=1, contact_nr="K-1", name="Musikverein"))
+    _quote(db_session, 1, "AN-001", status=4, datum=dt.date(2026, 2, 10))
+    _quote(db_session, 2, "AN-002", status=4, datum=dt.date(2026, 9, 30))
+    _quote(db_session, 3, "AN-003", status=4, datum=dt.date(2025, 11, 2))
+    _quote(db_session, 4, "AN-004", status=3, datum=dt.date(2026, 3, 1))  # angenommen
+    _quote(db_session, 5, "AN-005", status=4, datum=None)  # ohne Datum
+    db_session.commit()
+
+    for jahr in (2025, 2026, 2027):
+        assert declined_quote_count(db_session, {4}, jahr) == len(
+            declined_quotes(db_session, status_ids={4}, year=jahr)
+        ), jahr
+
+    assert declined_quote_count(db_session, {4}, 2026) == 2
+    assert declined_quote_count(db_session, {4}, 2025) == 1
+    assert declined_quote_count(db_session, {4}, 2027) == 0
+
+
+def test_zaehler_ohne_jahr_ist_der_gesamtbestand(db_session):
+    """Ohne Jahr zaehlt die Funktion alles - inklusive Angeboten ohne Datum."""
+    _quote(db_session, 1, "AN-001", status=4, datum=dt.date(2026, 2, 10))
+    _quote(db_session, 2, "AN-002", status=4, datum=None)
+    _quote(db_session, 3, "AN-003", status=3, datum=dt.date(2026, 2, 10))
+    db_session.commit()
+
+    assert declined_quote_count(db_session, {4}) == 2
+
+
+def test_ohne_konfigurierte_status_zaehlt_nichts(db_session):
+    """QUOTE_DECLINED_STATUS_IDS nicht gesetzt -> kein Report, kein Zaehler."""
+    _quote(db_session, 1, "AN-001", status=4)
+    db_session.commit()
+
+    assert declined_quote_count(db_session, set(), 2026) == 0
+    assert declined_quotes(db_session, status_ids=set(), year=2026) == []

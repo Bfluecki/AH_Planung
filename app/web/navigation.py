@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import ROLE_ADMIN, User
 from app.config import get_settings
-from app.models import Booking, MonthlyAllocation, Quote
+from app.domain.quotes import declined_quote_count
+from app.models import Booking, MonthlyAllocation
 
 # Reihenfolge der Status-Checkboxen in der Leiste.
 ALL_STATUSES = ["nur_angebot", "beauftragt", "verrechnet", "storniert"]
@@ -38,16 +39,11 @@ def navigations_zaehler(db: Session, year: int) -> dict:
         .scalar()
         or 0
     )
-    status_ids = get_settings().quote_declined_status_id_set
-    abgelehnt = 0
-    if status_ids:
-        abgelehnt = (
-            db.query(func.count(Quote.id))
-            .filter(Quote.kb_item_status_id.in_(sorted(status_ids)))
-            .filter(Quote.quote_date.isnot(None))
-            .scalar()
-            or 0
-        )
+    # Wie die anderen beiden Zaehler auf das Planjahr begrenzt - sonst steht in der
+    # Leiste der Gesamtbestand neben einer Seite, die nur das Jahr auswertet.
+    abgelehnt = declined_quote_count(
+        db, get_settings().quote_declined_status_id_set, year
+    )
     return {"buchungen": buchungen, "anlaesse": anlaesse, "abgelehnt": abgelehnt}
 
 
