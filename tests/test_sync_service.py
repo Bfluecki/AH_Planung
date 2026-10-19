@@ -7,7 +7,13 @@ from decimal import Decimal
 from app.bexio.client import BexioApiError
 from app.db import Base
 from app.models import LineItem
-from app.sync.service import _document_metrics, _extract_product_code, _pick, sync_credit_notes
+from app.sync.service import (
+    _document_metrics,
+    _extract_product_code,
+    _pick,
+    sync_credit_notes,
+    sync_line_items,
+)
 
 
 @pytest.fixture
@@ -256,3 +262,105 @@ def test_beauftragt_ohne_datum_im_titel_wird_als_unsicher_markiert(db_session):
     # Zahlen bleiben unveraendert - es wird nur gekennzeichnet.
     assert notbehelf.service_start == dt.date(2026, 3, 11)
     assert notbehelf.umsatz_soll == Decimal("2000.00")
+
+
+class _PositionsClient:
+    """Liefert je Beleg die Positionen, die Bexio gerade zurueckgibt."""
+
+    def __init__(self, positions_je_beleg: dict[int, list[dict]]):
+        self.positions_je_beleg = positions_je_beleg
+        self.aufrufe: list[int] = []
+
+    def get_positions(self, bexio_path, document_id):
+        self.aufrufe.append(document_id)
+        return self.positions_je_beleg[document_id]
+
+
+def _position(id, code, menge):
+    return {
+        "id": id,
+        "text": f"Produktcode: {code}",
+        "amount": str(menge),
+        "unit_price": "100.00",
+        "position_total": "100.00",
+    }
+
+
+def _mengen(db, document_id=1):
+    items = db.query(LineItem).filter_by(document_type="order", document_id=document_id).all()
+    return sorted((i.position_bexio_id, str(i.quantity)) for i in items)
+
+
+def test_in_bexio_geloeschte_position_verschwindet_aus_dem_cache(db_session):
+    """Sonst zaehlt eine korrigierte Position doppelt: die alte Menge bleibt liegen
+    und wird zur hergeleiteten PAX-Zahl dazugerechnet."""
+    client = _PositionsClient({1: [_position(10, "LH-UEB", 42), _position(11, "AH-VLP", 42)]})
+    sync_line_items(client, db_session, "order", [1])
+    assert _mengen(db_session) == [(10, "42.00"), (11, "42.00")]
+
+    # In Bexio wird die falsche Uebernachtungsposition geloescht und neu erfasst.
+    client.positions_je_beleg[1] = [_position(12, "LH-UEB", 21), _position(11, "AH-VLP", 42)]
+    sync_line_items(client, db_session, "order", [1])
+
+    assert _mengen(db_session) == [(11, "42.00"), (12, "21.00")]
+    metrics = _document_metrics(db_session, "order", 1, total=Decimal("3148.60"), physical_nights=1)
+    assert metrics.pax == 21
+
+
+def test_geaenderte_menge_derselben_position_wird_aktualisiert(db_session):
+    client = _PositionsClient({1: [_position(10, "LH-UEB", 42)]})
+    sync_line_items(client, db_session, "order", [1])
+
+    client.positions_je_beleg[1] = [_position(10, "LH-UEB", 21)]
+    sync_line_items(client, db_session, "order", [1])
+
+    assert _mengen(db_session) == [(10, "21.00")]
+
+
+def test_beleg_ohne_positionen_leert_den_cache(db_session):
+    client = _PositionsClient({1: [_position(10, "LH-UEB", 21)]})
+    sync_line_items(client, db_session, "order", [1])
+
+    client.positions_je_beleg[1] = []
+    sync_line_items(client, db_session, "order", [1])
+
+    assert _mengen(db_session) == []
+
+
+def test_nicht_abrufbarer_beleg_laesst_den_cache_unangetastet(db_session):
+    """Ein Netzwerkfehler darf keine Positionen loeschen - sonst waeren die Zahlen
+    nach einem gescheiterten Sync stillschweigend falsch."""
+
+    class _FehlerClient:
+        def get_positions(self, bexio_path, document_id):
+            raise BexioApiError(500, "Server Error")
+
+    client = _PositionsClient({1: [_position(10, "LH-UEB", 21)]})
+    sync_line_items(client, db_session, "order", [1])
+
+    sync_line_items(_FehlerClient(), db_session, "order", [1])
+
+    assert _mengen(db_session) == [(10, "21.00")]
+
+
+def test_positionen_ohne_id_heilen_sich_beim_naechsten_sync(db_session):
+    """Die Eindeutigkeit der Tabelle greift bei NULL nicht - Positionen ohne Bexio-id
+    konnten sich deshalb im Cache ansammeln und die Mengen aufblaehen."""
+    for _ in range(2):
+        db_session.add(
+            LineItem(
+                document_type="order",
+                document_id=1,
+                position_bexio_id=None,
+                product_code="LH-UEB",
+                quantity=Decimal("21.00"),
+                raw={},
+            )
+        )
+    db_session.commit()
+    assert len(_mengen(db_session)) == 2
+
+    client = _PositionsClient({1: [_position(10, "LH-UEB", 21)]})
+    sync_line_items(client, db_session, "order", [1])
+
+    assert _mengen(db_session) == [(10, "21.00")]

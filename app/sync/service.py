@@ -286,6 +286,14 @@ _DOCUMENT_TYPE_TO_BEXIO_PATH = {
 
 
 def sync_line_items(client: BexioClient, db: Session, document_type: str, document_ids: list[int]) -> int:
+    """Positionen eines Belegs in den Cache spiegeln - inklusive Loeschungen.
+
+    Der Cache muss den Beleg abbilden, wie er jetzt in Bexio steht. Wird eine
+    Position in Bexio geloescht oder ersetzt (haeufig beim Korrigieren einer
+    Menge), traegt sie eine neue id - die alte bliebe sonst fuer immer im Cache
+    liegen und wuerde weiterzaehlen. Das verfaelscht PAX und PAX-Naechte, die aus
+    den Positionsmengen hergeleitet werden (siehe _document_metrics).
+    """
     bexio_path = _DOCUMENT_TYPE_TO_BEXIO_PATH[document_type]
     count = 0
     for document_id in document_ids:
@@ -295,24 +303,33 @@ def sync_line_items(client: BexioClient, db: Session, document_type: str, docume
             logger.exception(
                 "Positionen fuer %s %s konnten nicht geladen werden", document_type, document_id
             )
+            # Beleg nicht abrufbar -> Cache unveraendert lassen, nichts loeschen.
             continue
+        # Bestand in einem Zug lesen: spart je Position eine Abfrage und macht
+        # Doppeleintraege gleicher id selbstheilend (der Rest faellt unten weg).
+        bestand: dict[int | None, LineItem] = {}
+        verwaist: list[LineItem] = []
+        for item in db.query(LineItem).filter_by(
+            document_type=document_type, document_id=document_id
+        ):
+            if item.position_bexio_id in bestand:
+                verwaist.append(item)
+            else:
+                bestand[item.position_bexio_id] = item
+
+        gesehen: set[int | None] = set()
         for pos in positions:
-            existing = (
-                db.query(LineItem)
-                .filter_by(
-                    document_type=document_type,
-                    document_id=document_id,
-                    position_bexio_id=pos.get("id"),
-                )
-                .one_or_none()
-            )
+            position_id = pos.get("id")
+            gesehen.add(position_id)
+            existing = bestand.get(position_id)
             if existing is None:
                 existing = LineItem(
                     document_type=document_type,
                     document_id=document_id,
-                    position_bexio_id=pos.get("id"),
+                    position_bexio_id=position_id,
                 )
                 db.add(existing)
+                bestand[position_id] = existing
             existing.product_code = _extract_product_code(pos)
             existing.description = pos.get("text", "") or pos.get("description", "")
             existing.quantity = _to_decimal(_pick(pos, "quantity"))
@@ -321,6 +338,19 @@ def sync_line_items(client: BexioClient, db: Session, document_type: str, docume
             existing.total = _to_decimal(_pick(pos, "position_total"))
             existing.raw = pos
             count += 1
+
+        verwaist += [item for pid, item in bestand.items() if pid not in gesehen]
+        for item in verwaist:
+            logger.info(
+                "Position %s von %s %s existiert in Bexio nicht mehr - wird aus dem "
+                "Cache entfernt (Menge %s, Produkt %s)",
+                item.position_bexio_id,
+                document_type,
+                document_id,
+                item.quantity,
+                item.product_code,
+            )
+            db.delete(item)
     db.commit()
     return count
 

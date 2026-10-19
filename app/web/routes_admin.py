@@ -21,9 +21,9 @@ from app.auth import ALL_ROLES, ROLE_ADMIN, ROLE_LABELS, ROLE_MITARBEITER, User,
 from app.config import get_settings
 from app.db import get_db
 from app.domain.allocation import ALLOCATION_MODE_FULL_MONTH, ALLOCATION_MODE_PRORATA
-from app.domain.periods import extract_service_period
+from app.domain.periods import extract_service_period, nights_between
 from app.domain.quotes import COMMENT_FIELDS, quote_status_overview
-from app.domain.product_mapping import ErtragsArt, ertragsart_fuer
+from app.domain.product_mapping import ErtragsArt, ertragsart_fuer, ist_uebernachtung
 from app.models import (
     Booking,
     CreditNote,
@@ -537,4 +537,111 @@ def admin_debug_angebot_status(beispiele: int = 2, db: Session = Depends(get_db)
         "freitext_in_auftraegen": [
             {"document_nr": o.document_nr, "felder": _freitext_felder(o.raw)} for o in orders
         ],
+    }
+
+
+def _pax_positionen(db: Session, document_type: str, document_id: int | None) -> dict | None:
+    """Alle Positionen eines Belegs, getrennt nach "zaehlt fuer PAX" und "zaehlt nicht"."""
+    if document_id is None:
+        return None
+    items = (
+        db.query(LineItem)
+        .filter_by(document_type=document_type, document_id=document_id)
+        .order_by(LineItem.id)
+        .all()
+    )
+    zaehlend = [i for i in items if ist_uebernachtung(i.product_code)]
+    return {
+        "document_id": document_id,
+        "mengensumme_uebernachtungen": str(
+            sum((i.quantity or Decimal("0") for i in zaehlend), Decimal("0"))
+        ),
+        "zaehlt_fuer_pax": [
+            {
+                "position_id": i.position_bexio_id,
+                "produktcode": i.product_code,
+                "text": (i.description or "")[:120],
+                "menge": str(i.quantity),
+            }
+            for i in zaehlend
+        ],
+        "zaehlt_nicht": [
+            {
+                "produktcode": i.product_code,
+                "text": (i.description or "")[:120],
+                "menge": str(i.quantity),
+            }
+            for i in items
+            if not ist_uebernachtung(i.product_code)
+        ],
+    }
+
+
+@router.get("/debug/pax-herleitung")
+def admin_debug_pax_herleitung(suche: str = "", limit: int = 5, db: Session = Depends(get_db)) -> dict:
+    """Warum hat diese Buchung diese PAX-Zahl?
+
+    Bexio liefert kein Teilnehmerfeld. PAX wird deshalb hergeleitet: Menge aller
+    Uebernachtungspositionen geteilt durch die physischen Naechte des Zeitraums
+    (siehe _document_metrics in app/sync/service.py). Stimmt die PAX-Zahl nicht,
+    liegt es an einem der beiden Werte - und hier steht, aus welchen Positionen
+    sie entstanden sind.
+
+    suche: Teil von Kundenname, Anlass oder Buchungsnummer.
+    """
+    query = db.query(Booking)
+    if suche:
+        muster = f"%{suche.strip()}%"
+        query = query.filter(
+            Booking.kunde.ilike(muster)
+            | Booking.anlass.ilike(muster)
+            | Booking.booking_key.ilike(muster)
+        )
+    buchungen = query.order_by(Booking.service_start.desc().nullslast()).limit(limit).all()
+
+    ergebnis = []
+    for b in buchungen:
+        physische_naechte = (
+            nights_between(b.service_start, b.service_end)
+            if b.service_start and b.service_end
+            else None
+        )
+        ergebnis.append(
+            {
+                "buchung": b.booking_key,
+                "kunde": b.kunde,
+                "anlass": b.anlass,
+                "zeitraum": {
+                    "von": b.service_start.isoformat() if b.service_start else None,
+                    "bis": b.service_end.isoformat() if b.service_end else None,
+                    "physische_naechte": physische_naechte,
+                    "herkunft": b.service_period_source,
+                },
+                "gespeichert": {
+                    "pax_soll": b.pax_soll,
+                    "pax_ist": b.pax_ist,
+                    "pax_naechte_soll": str(b.nights_soll),
+                    "pax_naechte_ist": str(b.nights_ist),
+                },
+                "rechnung": (
+                    f"PAX = Mengensumme {b.nights_soll} / {physische_naechte} Naechte"
+                    if physische_naechte
+                    else "kein Zeitraum -> keine Herleitung moeglich"
+                ),
+                "positionen": {
+                    "angebot": _pax_positionen(db, "quote", b.quote_id),
+                    "auftrag": _pax_positionen(db, "order", b.order_id),
+                    "rechnung": _pax_positionen(db, "invoice", b.invoice_id),
+                },
+            }
+        )
+    return {
+        "hinweis": (
+            "zaehlt_fuer_pax listet die Positionen, deren Menge als PAX-Naechte gilt "
+            "(NIGHT_RELEVANT_CODES in app/domain/product_mapping.py). Ist die "
+            "Mengensumme doppelt so hoch wie erwartet, steht dort meist eine Position "
+            "zu viel oder eine Menge als Personen x Tage statt Personen x Naechte."
+        ),
+        "treffer": len(ergebnis),
+        "buchungen": ergebnis,
     }
