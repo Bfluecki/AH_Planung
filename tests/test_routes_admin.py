@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.auth import ROLE_ADMIN, create_user
 from app.config import get_settings
 from app.db import Base, get_db
-from app.models import Booking, Invoice, LineItem, MonthlyAllocation, Order, Quote
+from app.models import Booking, Contact, Invoice, LineItem, MonthlyAllocation, Order, Quote
 
 
 @pytest.fixture
@@ -361,3 +361,47 @@ def test_angebot_status_diagnose_zeigt_status_und_freitextfelder(client):
     assert felder["internal_note"] == "Kunde hat abgesagt"
     # Reine Verweisfelder sind kein Freitext und wuerden nur Rauschen erzeugen.
     assert "contact_id" not in felder
+
+
+def test_kunde_debug_zeigt_die_kontaktfelder_des_belegs(client):
+    """Stimmt der angezeigte Kunde nicht mit Bexio ueberein, muss sichtbar sein,
+    auf welchen Kontakt der Beleg zeigt - contact_id ist das Feld, nach dem auch
+    Bexio die Register am Kontakt fuellt, contact_sub_id die Kontaktperson."""
+    test_client, TestSession = client
+    db = TestSession()
+    db.add(Contact(id=10, contact_nr="K-10", name="Madeo-Baumgartner Christina",
+                   raw={"name_1": "Madeo-Baumgartner", "name_2": "Christina",
+                        "contact_type_id": 2}))
+    db.add(Contact(id=11, contact_nr="K-11", name="Schuerpf Meo", raw={"name_1": "Schuerpf"}))
+    db.add(Quote(id=1, document_nr="AN-00060", contact_id=11,
+                 title="Probewochenende 17.-18.10.26",
+                 raw={"contact_id": 11, "contact_sub_id": 10, "user_id": 3}))
+    db.add(Booking(booking_key="AN-00060", quote_id=1, contact_id=11, status="nur_angebot",
+                   kunde="Schuerpf Meo", anlass="Probewochenende 17.-18.10.26"))
+    db.commit()
+    db.close()
+
+    body = test_client.get("/admin/debug/kunde?suche=Schuerpf").json()
+
+    assert [k["id"] for k in body["kontakte"]] == [11]
+    beleg = body["belege_dieser_kontakte"][0]
+    assert beleg["nummer"] == "AN-00060"
+    assert beleg["unser_contact_id"] == 11
+    # Die verknuepfte Kontaktperson steht am Beleg und ist damit nachvollziehbar.
+    assert beleg["bexio_kontaktfelder"] == {"contact_id": 11, "contact_sub_id": 10, "user_id": 3}
+
+
+def test_kunde_debug_zeigt_kontakt_ohne_belege(client):
+    """Ein Kontakt, dem die Anwendung nichts zugeordnet hat, muss als solcher
+    erkennbar sein - sonst bleibt offen, ob nur die Suche danebengriff."""
+    test_client, TestSession = client
+    db = TestSession()
+    db.add(Contact(id=10, contact_nr="K-10", name="Madeo-Baumgartner Christina", raw={}))
+    db.commit()
+    db.close()
+
+    body = test_client.get("/admin/debug/kunde?suche=Madeo").json()
+
+    assert [k["name"] for k in body["kontakte"]] == ["Madeo-Baumgartner Christina"]
+    assert body["belege_dieser_kontakte"] == []
+    assert body["buchungen"] == []

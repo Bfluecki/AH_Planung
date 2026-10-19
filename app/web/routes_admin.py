@@ -26,6 +26,7 @@ from app.domain.quotes import COMMENT_FIELDS, quote_status_overview
 from app.domain.product_mapping import ErtragsArt, ertragsart_fuer, ist_uebernachtung
 from app.models import (
     Booking,
+    Contact,
     CreditNote,
     Invoice,
     LineItem,
@@ -644,4 +645,98 @@ def admin_debug_pax_herleitung(suche: str = "", limit: int = 5, db: Session = De
         ),
         "treffer": len(ergebnis),
         "buchungen": ergebnis,
+    }
+
+
+# Felder eines Bexio-Belegs, die auf einen Kontakt zeigen. contact_id ist der
+# Beleg-Empfaenger (danach filtert Bexio die Register "Angebote"/"Auftraege" am
+# Kontakt), contact_sub_id die Kontaktperson/Verknuepfung darunter. Die Anwendung
+# liest nur contact_id - stimmt der angezeigte Kunde nicht, muss sich das hier zeigen.
+_KONTAKT_FELDER = ("contact_id", "contact_sub_id", "user_id", "owner_id")
+
+
+def _beleg_kontaktfelder(raw: dict | None) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    return {feld: raw.get(feld) for feld in _KONTAKT_FELDER if feld in raw}
+
+
+@router.get("/debug/kunde")
+def admin_debug_kunde(suche: str = "", limit: int = 20, db: Session = Depends(get_db)) -> dict:
+    """Warum steht bei dieser Buchung dieser Kunde?
+
+    Der Kundenname einer Buchung stammt aus dem Kontakt, auf den der Beleg per
+    contact_id zeigt - dieselbe Zuordnung, nach der Bexio die Register "Angebote"
+    und "Auftraege" am Kontakt fuellt. Weichen die beiden voneinander ab, zeigt
+    diese Ausgabe, welchen Kontakt Bexio am Beleg tatsaechlich liefert und welchen
+    Namen dieser Kontakt bei uns traegt.
+
+    suche: Teil eines Kontaktnamens, einer Kontaktnummer oder eines Anlasses.
+    """
+    muster = f"%{suche.strip()}%" if suche.strip() else "%"
+
+    kontakte = (
+        db.query(Contact)
+        .filter(Contact.name.ilike(muster) | Contact.contact_nr.ilike(muster))
+        .order_by(Contact.name)
+        .limit(limit)
+        .all()
+    )
+    kontakt_ids = [k.id for k in kontakte]
+
+    def belege(modell, typ: str) -> list[dict]:
+        if not kontakt_ids:
+            return []
+        return [
+            {
+                "typ": typ,
+                "nummer": row.document_nr,
+                "titel": row.title,
+                "unser_contact_id": row.contact_id,
+                "bexio_kontaktfelder": _beleg_kontaktfelder(row.raw),
+            }
+            for row in db.query(modell).filter(modell.contact_id.in_(kontakt_ids)).all()
+        ]
+
+    gefunden = belege(Quote, "angebot") + belege(Order, "auftrag") + belege(Invoice, "rechnung")
+
+    buchungen = (
+        db.query(Booking)
+        .filter(Booking.kunde.ilike(muster) | Booking.anlass.ilike(muster))
+        .order_by(Booking.service_start.desc().nullslast())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "hinweis": (
+            "Steht ein Beleg hier unter einem Kontakt, bei dem Bexio ihn nicht "
+            "anzeigt, weicht contact_id am Beleg von dem ab, was die Bexio-Oberflaeche "
+            "zeigt - dann steht die Antwort in bexio_kontaktfelder (contact_sub_id = "
+            "verknuepfte Kontaktperson). Ist die Liste der Belege leer, hat die "
+            "Anwendung diesem Kontakt gar nichts zugeordnet."
+        ),
+        "kontakte": [
+            {
+                "id": k.id,
+                "nummer": k.contact_nr,
+                "name": k.name,
+                "bexio_name_1": (k.raw or {}).get("name_1"),
+                "bexio_name_2": (k.raw or {}).get("name_2"),
+                "bexio_contact_type_id": (k.raw or {}).get("contact_type_id"),
+            }
+            for k in kontakte
+        ],
+        "belege_dieser_kontakte": gefunden,
+        "buchungen": [
+            {
+                "buchung": b.booking_key,
+                "kunde": b.kunde,
+                "anlass": b.anlass,
+                "contact_id": b.contact_id,
+                "status": b.status,
+                "verkettung": b.linked_by,
+            }
+            for b in buchungen
+        ],
     }
