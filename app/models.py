@@ -275,7 +275,7 @@ class Booking(Base):
     # linked_by: "reference" (harte Bexio-Referenz) | "heuristic" (Kundennr+Titel+Zeitraum) | "none"
     linked_by: Mapped[str] = mapped_column(String, default="none")
 
-    # status: nur_angebot | beauftragt | verrechnet | storniert
+    # status: nur_angebot | beauftragt | verrechnet | abgelehnt | storniert
     status: Mapped[str] = mapped_column(String, default="nur_angebot")
 
     service_start: Mapped[dt.date | None] = mapped_column(Date, nullable=True)

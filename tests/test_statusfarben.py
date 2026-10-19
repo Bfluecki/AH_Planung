@@ -16,6 +16,8 @@ MIN_KONTRAST = 4.5           # WCAG AA fuer grossen/fetten Text
 MIN_ABSTAND = 45.0           # Lab-Abstand zwischen zwei beliebigen Status
 MIN_ABSTAND_NACHBARN = 60.0  # nur_angebot/beauftragt liegen im Kalender nebeneinander
 
+STATUS = ["nur_angebot", "beauftragt", "verrechnet", "abgelehnt", "storniert"]
+
 # Viénot/Brettel/Mollon: Simulation der Gruenschwaeche ueber den LMS-Raum.
 M_RGB_LMS = ((17.8824, 43.5161, 4.11935),
              (3.45565, 27.1554, 3.86714),
@@ -92,17 +94,17 @@ def _chip_hintergruende() -> dict[str, str]:
     return dict(re.findall(muster, inhalt))
 
 
-def test_palette_enthaelt_alle_vier_status():
-    assert set(_palette()) == {"nur_angebot", "beauftragt", "verrechnet", "storniert"}
+def test_palette_enthaelt_jeden_status():
+    assert set(_palette()) == set(STATUS)
 
 
-@pytest.mark.parametrize("status", ["nur_angebot", "beauftragt", "verrechnet", "storniert"])
+@pytest.mark.parametrize("status", STATUS)
 def test_weisse_schrift_auf_dem_kalenderbalken_ist_lesbar(status):
     farbe = _palette()[status]
     assert kontrast(farbe, "#ffffff") >= MIN_KONTRAST, f"{status} {farbe}"
 
 
-@pytest.mark.parametrize("status", ["nur_angebot", "beauftragt", "verrechnet", "storniert"])
+@pytest.mark.parametrize("status", STATUS)
 def test_chip_text_auf_seinem_hintergrund_ist_lesbar(status):
     farbe = _palette()[status]
     hintergrund = _chip_hintergruende()[status]
