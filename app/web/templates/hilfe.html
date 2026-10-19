@@ -86,8 +86,19 @@
             <tr><td><span class="status status-nur_angebot">nur_angebot</span></td><td>Nur ein Angebot vorhanden (Pipeline), noch nicht bestätigt.</td></tr>
             <tr><td><span class="status status-beauftragt">beauftragt</span></td><td>Auftrag bestätigt (Soll steht), aber noch keine Rechnung.</td></tr>
             <tr><td><span class="status status-verrechnet">verrechnet</span></td><td>Rechnung gestellt (Ist steht). <strong>Standard-Ansicht.</strong></td></tr>
+            <tr><td><span class="status status-abgelehnt">abgelehnt</span></td><td>Das Angebot steht in Bexio auf <em>Abgelehnt</em> und es gibt weder Auftrag noch Rechnung.</td></tr>
             <tr><td><span class="status status-storniert">storniert</span></td><td>Rechnung storniert oder per Gutschrift vollständig aufgehoben → Ist = 0.</td></tr>
         </table>
+        <p><strong>Abgelehnt kommt aus Bexio</strong>, nicht aus dieser Anwendung: dort führt jedes
+        Angebot den Status <em>Offen</em>, <em>Bestätigt</em> oder <em>Abgelehnt</em>. Welche interne
+        Nummer «Abgelehnt» bedeutet, steht in der Einstellung
+        <code>QUOTE_DECLINED_STATUS_IDS</code>; <code>/admin/debug/angebot-status</code> zeigt die
+        Nummern, die in den echten Daten vorkommen.</p>
+        <p>Ein abgelehntes Angebot wird <strong>nicht mitgeplant</strong> – es ist in Dashboard und
+        Kalender ausgeblendet und fehlt in den offenen Umsätzen. Der Betrag bleibt an der Zeile
+        stehen, sichtbar über den Status-Filter und im Report «Abgelehnte Angebote». Steht am
+        abgelehnten Angebot trotzdem ein Auftrag oder eine Rechnung, gewinnt der Beleg: in Bexio
+        bleibt der Angebotsstatus nach einer späteren Buchung oft einfach stehen.</p>
         <p>Über den <strong>Status-Filter</strong> oben lassen sich weitere Status zuschalten;
         standardmässig werden nur «verrechnet»-Buchungen angezeigt. Der Filter wirkt auf die
         Jahresübersicht <em>und</em> die Detailtabellen.</p>
@@ -129,7 +140,8 @@
             Anlassnamens oder nach der Buchungsnummer (Gross-/Kleinschreibung egal).</td></tr>
             <tr><td><strong>Status</strong></td><td>welche Buchungen erscheinen. Im Dashboard sind
             <em>nur_angebot</em>, <em>beauftragt</em> und <em>verrechnet</em> voreingestellt, im
-            Kalender nur <em>nur_angebot</em> und <em>beauftragt</em>.</td></tr>
+            Kalender nur <em>nur_angebot</em> und <em>beauftragt</em>. <em>abgelehnt</em> und
+            <em>storniert</em> sind überall ausgeblendet – beide tragen keinen Umsatz mehr bei.</td></tr>
         </table>
         <p>Ein Haken bei <strong>Status</strong> wirkt sofort – die Seite lädt sich selbst neu.
         Nach dem Ändern des Jahres oder des Suchbegriffs genügt <strong>«Anwenden»</strong> (oder die
@@ -147,6 +159,7 @@
             <tr><td><span class="kal-balken kal-nur_angebot">nur_angebot</span></td><td>angefragt, noch nicht beauftragt – als Umriss gezeichnet, weil noch nicht fest</td></tr>
             <tr><td><span class="kal-balken kal-beauftragt">beauftragt</span></td><td>fest gebucht – das Rückgrat der Planung</td></tr>
             <tr><td><span class="kal-balken kal-verrechnet">verrechnet</span></td><td>bereits abgerechnet (Vergangenheit)</td></tr>
+            <tr><td><span class="kal-balken kal-abgelehnt">abgelehnt</span></td><td>Angebot abgelehnt – findet nicht statt</td></tr>
             <tr><td><span class="kal-balken kal-storniert">storniert</span></td><td>abgesagt</td></tr>
         </table>
         <p>Voreingestellt sind <em>nur_angebot</em> und <em>beauftragt</em> – der Kalender ist ein
@@ -155,11 +168,12 @@
         <p>Die beiden Planungsstatus sind bewusst <strong>kalt gegen warm</strong> gesetzt:
         <em>nur_angebot</em> petrolblau, <em>beauftragt</em> ocker. So lassen sie sich auch
         dann unterscheiden, wenn zwei Balken im Raster direkt untereinander liegen.
-        <em>verrechnet</em> ist grün, <em>storniert</em> rot.</p>
+        <em>verrechnet</em> ist grün, <em>abgelehnt</em> pflaumenviolett, <em>storniert</em> rot.</p>
         <p>Jeder Balken trägt vorne ein <strong>Statuszeichen</strong>: ○ nur Angebot,
-        ◆ beauftragt, ● verrechnet, ✕ storniert. Es sagt dasselbe wie die Farbe, bleibt
-        aber auch bei schmalen Balken, im Ausdruck und bei Farbsehschwäche lesbar –
-        bei Grünschwäche liegen Ocker und Grün nahe beieinander.</p>
+        ◆ beauftragt, ● verrechnet, ⊘ abgelehnt, ✕ storniert. Es sagt dasselbe wie die
+        Farbe, bleibt aber auch bei schmalen Balken, im Ausdruck und bei Farbsehschwäche
+        lesbar – bei Grünschwäche liegen Ocker und Grün sowie Petrol und Pflaume nahe
+        beieinander.</p>
         <p><strong>Ein Klick auf einen Balken öffnet die zugehörige Detailzeile</strong> im
         Dashboard – mit passendem Jahr und Status und direkt zum richtigen Monat gesprungen.
         Im Dashboard lässt sich dieselbe Zeile jederzeit über die Suche nach der

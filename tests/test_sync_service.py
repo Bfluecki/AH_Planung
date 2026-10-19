@@ -364,3 +364,62 @@ def test_positionen_ohne_id_heilen_sich_beim_naechsten_sync(db_session):
     sync_line_items(client, db_session, "order", [1])
 
     assert _mengen(db_session) == [(10, "21.00")]
+
+
+def test_abgelehntes_angebot_faellt_aus_der_pipeline(db_session):
+    """Ende zu Ende: ein in Bexio abgelehntes Angebot bekommt den Status
+    "abgelehnt" und zaehlt damit nicht mehr zur offenen Planung."""
+    import datetime as dt
+
+    from app.config import Settings
+    from app.models import Booking, Contact, Order, Quote
+    from app.sync.service import rebuild_bookings
+
+    einstellungen = Settings(quote_declined_status_ids="4")
+
+    db_session.add(Contact(id=1, contact_nr="K-1", name="Junger Chor Solothurn"))
+    db_session.add(Quote(id=1, document_nr="AN-00048", contact_id=1,
+                         title="Probewochenende 09. bis 10.05.2026",
+                         quote_date=dt.date(2026, 5, 28), total=Decimal("7917.55"),
+                         kb_item_status_id=4, raw={}))
+    # Offenes Angebot -> bleibt Pipeline.
+    db_session.add(Quote(id=2, document_nr="AN-00059", contact_id=1,
+                         title="TrueBadours 10. bis 13.09.2026",
+                         quote_date=dt.date(2026, 9, 30), total=Decimal("313.90"),
+                         kb_item_status_id=2, raw={}))
+    # Abgelehnt, aber trotzdem beauftragt -> der Auftrag ist die staerkere Aussage.
+    db_session.add(Quote(id=3, document_nr="AN-00049", contact_id=1,
+                         title="Probewochenende 09. bis 10.06.2026",
+                         quote_date=dt.date(2026, 6, 3), total=Decimal("3414.70"),
+                         kb_item_status_id=4, raw={}))
+    db_session.add(Order(id=3, document_nr="AU-00049", contact_id=1,
+                         title="Probewochenende 09. bis 10.06.2026",
+                         order_date=dt.date(2026, 6, 5), total=Decimal("3414.70"),
+                         source_quote_bexio_id=3))
+    db_session.commit()
+
+    rebuild_bookings(db_session, einstellungen)
+
+    status = {b.booking_key: b.status for b in db_session.query(Booking).all()}
+    assert status["AN-00048"] == "abgelehnt"
+    assert status["AN-00059"] == "nur_angebot"
+    assert status["AU-00049"] == "beauftragt"
+
+
+def test_ohne_konfigurierte_ablehnungsstatus_bleibt_alles_pipeline(db_session):
+    """QUOTE_DECLINED_STATUS_IDS leer -> der Status wird nicht geraten."""
+    import datetime as dt
+
+    from app.config import Settings
+    from app.models import Booking, Contact, Quote
+    from app.sync.service import rebuild_bookings
+
+    db_session.add(Contact(id=1, contact_nr="K-1", name="Kunde"))
+    db_session.add(Quote(id=1, document_nr="AN-001", contact_id=1,
+                         title="Anlass 09. bis 10.05.2026", quote_date=dt.date(2026, 5, 1),
+                         total=Decimal("1000"), kb_item_status_id=4, raw={}))
+    db_session.commit()
+
+    rebuild_bookings(db_session, Settings(quote_declined_status_ids=""))
+
+    assert db_session.query(Booking).one().status == "nur_angebot"

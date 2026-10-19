@@ -219,11 +219,13 @@ def test_status_filter_zeigt_standardmaessig_alles_ausser_storniert(client):
     from app.web.routes_dashboard import ALL_STATUSES, DEFAULT_STATUSES
 
     assert DEFAULT_STATUSES == ["nur_angebot", "beauftragt", "verrechnet"]
-    assert "storniert" in ALL_STATUSES and "storniert" not in DEFAULT_STATUSES
+    # Abgelehntes und Storniertes traegt keinen Umsatz mehr bei und bleibt aussen vor.
+    for status in ("abgelehnt", "storniert"):
+        assert status in ALL_STATUSES and status not in DEFAULT_STATUSES
 
     page = client.get("/?year=2026")
-    # Alle vier Status stehen in der Seitenleiste zur Wahl, drei sind angehakt.
-    assert page.text.count('type="checkbox" name="status"') == 4
+    # Jeder Status steht in der Seitenleiste zur Wahl, die Vorgabe ist angehakt.
+    assert page.text.count('type="checkbox" name="status"') == len(ALL_STATUSES)
     assert page.text.count('value="storniert" checked') == 0
     for status in DEFAULT_STATUSES:
         assert f'value="{status}" checked' in page.text

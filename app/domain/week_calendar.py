@@ -22,6 +22,7 @@ STATUS_SYMBOLS = {
     "nur_angebot": "○",
     "beauftragt": "◆",
     "verrechnet": "●",
+    "abgelehnt": "⊘",
     "storniert": "✕",
 }
 

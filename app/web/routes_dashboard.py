@@ -26,6 +26,7 @@ from app.domain.week_calendar import (
     calendar_weeks,
 )
 from app.domain.soll_ist import (
+    STATUS_ABGELEHNT,
     STATUS_BEAUFTRAGT,
     STATUS_NUR_ANGEBOT,
     STATUS_STORNIERT,
@@ -47,8 +48,15 @@ MONTH_NAMES_DE = [
 
 # Reihenfolge fuer die Filter-Checkboxen. Als Planungswerkzeug zeigt die Ansicht
 # standardmaessig alles, was zum Plan beitraegt - Angebote, Auftraege und bereits
-# Verrechnetes. Nur Storniertes ist ausgeblendet und per Dropdown zuschaltbar.
-ALL_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET, STATUS_STORNIERT]
+# Verrechnetes. Abgelehntes und Storniertes ist ausgeblendet und zuschaltbar: beides
+# traegt keinen Umsatz mehr bei und wuerde die Planung sonst zu optimistisch machen.
+ALL_STATUSES = [
+    STATUS_NUR_ANGEBOT,
+    STATUS_BEAUFTRAGT,
+    STATUS_VERRECHNET,
+    STATUS_ABGELEHNT,
+    STATUS_STORNIERT,
+]
 DEFAULT_STATUSES = [STATUS_NUR_ANGEBOT, STATUS_BEAUFTRAGT, STATUS_VERRECHNET]
 # Der Kalender ist ein Planungsinstrument: er zeigt von Haus aus, was noch
 # ansteht. Verrechnetes (= Vergangenheit) ist ueber den Filter zuschaltbar.

@@ -450,6 +450,7 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
     """Baut alle Booking- und MonthlyAllocation-Zeilen aus dem aktuellen Rohdaten-Cache neu auf."""
     settings = settings or get_settings()
     effective = get_effective_config(db, settings)
+    declined_status_ids = settings.quote_declined_status_id_set
 
     quotes = db.query(Quote).all()
     orders = db.query(Order).all()
@@ -548,11 +549,20 @@ def rebuild_bookings(db: Session, settings: Settings | None = None) -> int:
             # gegen das Buchhaltungsjournal 2025: 11 Gutschrift-Buchungen).
             credit_note_total = _credit_voucher_net(invoice_row)
 
+        # Angebotsstatus aus Bexio (Offen/Bestaetigt/Abgelehnt). Welche Zahl
+        # "abgelehnt" bedeutet, steht in QUOTE_DECLINED_STATUS_IDS.
+        quote_declined = bool(
+            quote_row is not None
+            and declined_status_ids
+            and quote_row.kb_item_status_id in declined_status_ids
+        )
+
         booking_metrics = compute_booking_metrics(
             quote=quote_metrics,
             order=order_metrics,
             invoice=invoice_metrics,
             credit_note_total=credit_note_total,
+            quote_declined=quote_declined,
         )
 
         booking = db.query(Booking).filter_by(booking_key=chain.booking_key).one_or_none()

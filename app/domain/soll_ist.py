@@ -12,6 +12,10 @@ from decimal import Decimal
 STATUS_NUR_ANGEBOT = "nur_angebot"
 STATUS_BEAUFTRAGT = "beauftragt"
 STATUS_VERRECHNET = "verrechnet"
+# Bexio fuehrt Angebote als Offen/Bestaetigt/Abgelehnt. Ein abgelehntes Angebot ist
+# keine Pipeline mehr - es als "nur_angebot" zu zaehlen wuerde die Planung mit
+# Umsatz fuellen, der nie kommt. Deshalb ein eigener Status statt einer Teilmenge.
+STATUS_ABGELEHNT = "abgelehnt"
 STATUS_STORNIERT = "storniert"
 
 
@@ -48,11 +52,17 @@ def compute_booking_metrics(
     order: DocumentMetrics | None,
     invoice: DocumentMetrics | None,
     credit_note_total: Decimal | None = None,
+    quote_declined: bool = False,
 ) -> BookingMetrics:
     """Errechnet Soll/Ist/Diff + Status fuer eine verkettete Buchung.
 
     Reihenfolge Soll-Quelle: Order > Quote (reine Pipeline ohne Auftrag).
     Ist-Quelle: Invoice, reduziert um credit_note_total (Gutschriften).
+
+    quote_declined meldet, dass das Angebot in Bexio auf "Abgelehnt" steht. Das
+    zaehlt nur, solange kein Auftrag und keine Rechnung existieren: gibt es die,
+    wurde trotz des Angebotsstatus gebucht, und der Beleg ist die staerkere
+    Aussage (in Bexio bleibt der Angebotsstatus dann oft einfach stehen).
     """
     soll_source = order or quote
     pax_soll = soll_source.pax if soll_source else None
@@ -71,6 +81,8 @@ def compute_booking_metrics(
         status = STATUS_VERRECHNET
     elif order is not None:
         status = STATUS_BEAUFTRAGT
+    elif quote_declined:
+        status = STATUS_ABGELEHNT
     else:
         status = STATUS_NUR_ANGEBOT
 

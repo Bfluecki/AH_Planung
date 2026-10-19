@@ -18,7 +18,7 @@ from app.domain.quotes import declined_quote_count
 from app.models import Booking, MonthlyAllocation
 
 # Reihenfolge der Status-Checkboxen in der Leiste.
-ALL_STATUSES = ["nur_angebot", "beauftragt", "verrechnet", "storniert"]
+ALL_STATUSES = ["nur_angebot", "beauftragt", "verrechnet", "abgelehnt", "storniert"]
 
 
 def navigations_zaehler(db: Session, year: int) -> dict:

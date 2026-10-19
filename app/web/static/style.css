@@ -21,12 +21,15 @@
        direkt nebeneinander stehen - deshalb steht dem warmen Ocker des Auftrags
        jetzt ein kuehles Petrol gegenueber (Abstand 78.8 im Lab-Raum statt 32.6
        bei den zwei Erdtoenen zuvor). Alle Paare liegen >= 45 auseinander und
-       halten Kontrast >= 4.5 gegen weisse Schrift. Bei Gruenschwaeche bleiben
-       Ocker/Gruen und Gruen/Rot nah beieinander - deshalb traegt zusaetzlich
-       ein Zeichen je Status die Information. */
+       halten Kontrast >= 4.5 gegen weisse Schrift. Fuenf Farben so weit
+       auseinanderzuziehen geht nur, wenn eine aus der warmen Reihe ausbricht -
+       abgelehnt ist deshalb ein dunkles Pflaumenviolett. Bei Gruenschwaeche
+       bleiben Ocker/Gruen, Gruen/Rot und Blau/Pflaume nah beieinander -
+       deshalb traegt zusaetzlich ein Zeichen je Status die Information. */
     --status-angebot: #3b6f94;
     --status-beauftragt: #98630f;
     --status-verrechnet: #46762f;
+    --status-abgelehnt: #7d3b7d;
     --status-storniert: #b53c4a;
     --radius: 8px;
     --shadow: 0 1px 2px rgba(40, 34, 26, 0.05);
@@ -198,6 +201,8 @@ tfoot td { font-weight: 700; background: var(--color-row-alt); border-top: 2px s
 .status-beauftragt::before { content: "◆"; }
 .status-verrechnet { color: var(--status-verrechnet); background: #e9f1e3; }
 .status-verrechnet::before { content: "●"; }
+.status-abgelehnt { color: var(--status-abgelehnt); background: #f3e9f3; }
+.status-abgelehnt::before { content: "⊘"; }
 .status-storniert { color: var(--status-storniert); background: #fbe9eb; }
 .status-storniert::before { content: "✕"; }
 .linked-heuristic { color: var(--color-taupe); }
@@ -552,6 +557,7 @@ button.primary:hover { background: var(--color-accent-dark); }
 .kal-nur_angebot { background: var(--status-angebot); }
 .kal-beauftragt { background: var(--status-beauftragt); }
 .kal-verrechnet { background: var(--status-verrechnet); }
+.kal-abgelehnt { background: var(--status-abgelehnt); }
 .kal-storniert { background: var(--status-storniert); }
 /* Laeuft der Anlass ueber den Wochenrand hinaus, Kante dort offen zeichnen. */
 .kal-vorher { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-style: dashed; }

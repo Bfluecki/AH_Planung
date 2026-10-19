@@ -153,7 +153,7 @@ def test_jeder_status_hat_ein_eigenes_zeichen(db_session):
     """Die Farbe allein traegt nicht: schmale Balken, Ausdruck, Farbsehschwaeche."""
     from app.domain.week_calendar import STATUS_SYMBOLS
 
-    for i, status in enumerate(("nur_angebot", "beauftragt", "verrechnet", "storniert")):
+    for i, status in enumerate(STATUS_SYMBOLS):
         _booking(db_session, f"B-{i}", dt.date(2026, 3, 4), dt.date(2026, 3, 4), status=status)
     db_session.commit()
 
@@ -161,7 +161,7 @@ def test_jeder_status_hat_ein_eigenes_zeichen(db_session):
                  for w in calendar_weeks(db_session, 2026, set(STATUS_SYMBOLS)) for e in w.entries}
 
     assert eintraege == STATUS_SYMBOLS
-    assert len(set(STATUS_SYMBOLS.values())) == 4
+    assert len(set(STATUS_SYMBOLS.values())) == len(STATUS_SYMBOLS)
 
 
 def test_leere_statusmenge_zeigt_nichts_none_zeigt_alles(db_session):
