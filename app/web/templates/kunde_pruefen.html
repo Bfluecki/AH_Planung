@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kunde prüfen – Aarbergerhus</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ asset_version() }}">
+</head>
+<body>
+    <header class="kopf-schlank">
+        <a href="/admin">Zurück zur Administration</a>
+    </header>
+
+    <div class="layout">
+    {% include "_seitenleiste.html" %}
+    <div class="content">
+
+    <section>
+        <h2>Kunde prüfen</h2>
+        <p>Der Kundenname einer Buchung stammt aus dem Kontakt, auf den der Beleg per
+        <code>contact_id</code> zeigt – dasselbe Feld, nach dem auch Bexio die Register
+        «Angebote» und «Aufträge» am Kontakt füllt. Stimmen die beiden Darstellungen
+        nicht überein, zeigt diese Seite, woran es liegt.</p>
+
+        <form method="get" action="/admin/kunde-pruefen" class="search-form">
+            <input type="search" name="suche" value="{{ suche }}"
+                   aria-label="Name, Kontaktnummer oder Anlass"
+                   placeholder="Name, Kontaktnummer oder Anlass" autofocus>
+            <button type="submit" class="primary">Suchen</button>
+        </form>
+    </section>
+
+    {% if diagnose %}
+    <section>
+        <h2>Kontakte</h2>
+        {% if diagnose.kontakte %}
+        <table class="detail">
+            <thead>
+                <tr>
+                    <th>Kontakt-ID</th><th class="text-col">Kontaktnummer</th>
+                    <th class="text-col">Name bei uns</th><th class="text-col">name_1 / name_2 aus Bexio</th>
+                    <th class="text-col">Belege bei uns</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for k in diagnose.kontakte %}
+                {% set eigene = diagnose.belege_dieser_kontakte | selectattr("unser_contact_id", "equalto", k.id) | list %}
+                <tr>
+                    <td>{{ k.id }}</td>
+                    <td class="text-col">{{ k.nummer }}</td>
+                    <td class="text-col"><strong>{{ k.name }}</strong></td>
+                    <td class="text-col">{{ k.bexio_name_1 or "–" }} / {{ k.bexio_name_2 or "–" }}</td>
+                    <td class="text-col">
+                        {%- if eigene %}{{ eigene | length }} Beleg(e)
+                        {%- else %}<span class="empty">keine</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Kein Kontakt gefunden. Steht der Name in Bexio anders geschrieben?</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Belege dieser Kontakte</h2>
+        {% if diagnose.belege_dieser_kontakte %}
+        <table class="detail">
+            <thead>
+                <tr>
+                    <th class="text-col">Art</th><th class="text-col">Nummer</th>
+                    <th class="text-col">Titel</th><th>Kontakt-ID</th>
+                    <th class="text-col">Kontaktfelder aus Bexio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in diagnose.belege_dieser_kontakte %}
+                <tr>
+                    <td class="text-col">{{ b.typ }}</td>
+                    <td class="text-col">{{ b.nummer }}</td>
+                    <td class="text-col">{{ b.titel }}</td>
+                    <td>{{ b.unser_contact_id }}</td>
+                    <td class="text-col">
+                        {%- for feld, wert in b.bexio_kontaktfelder.items() %}
+                        <code>{{ feld }}={{ wert if wert is not none else "–" }}</code>{% if not loop.last %}, {% endif %}
+                        {%- else %}<span class="empty">keine</span>{% endfor %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p><strong>So liest sich das:</strong> Steht hier ein Beleg, den Bexio beim selben
+        Kontakt <em>nicht</em> anzeigt, weicht <code>contact_id</code> von der Bexio-Oberfläche ab –
+        dann ist <code>contact_sub_id</code> (die verknüpfte Kontaktperson) der Schlüssel.
+        Ist die Tabelle leer, hat die Anwendung diesem Kontakt gar nichts zugeordnet, und der
+        falsche Name muss aus dem Kontaktsatz selbst stammen.</p>
+        {% else %}
+        <p class="empty">Diesen Kontakten ist kein Angebot, kein Auftrag und keine Rechnung zugeordnet.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Buchungen unter diesem Namen</h2>
+        {% if diagnose.buchungen %}
+        <table class="detail">
+            <thead>
+                <tr>
+                    <th class="text-col">Buchung</th><th class="text-col">Kunde</th>
+                    <th class="text-col">Anlass</th><th class="text-col">Status</th>
+                    <th>Kontakt-ID</th><th class="text-col">Verkettung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in diagnose.buchungen %}
+                <tr>
+                    <td class="text-col">{{ b.buchung }}</td>
+                    <td class="text-col">{{ b.kunde or "–" }}</td>
+                    <td class="text-col">{{ b.anlass }}</td>
+                    <td class="text-col"><span class="status status-{{ b.status }}">{{ b.status }}</span></td>
+                    <td>{{ b.contact_id if b.contact_id is not none else "–" }}</td>
+                    <td class="text-col linked-{{ b.verkettung }}">{{ b.verkettung }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Keine Buchung läuft unter diesem Namen.</p>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    </div>
+    </div>
+</body>
+</html>

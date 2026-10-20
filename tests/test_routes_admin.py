@@ -405,3 +405,47 @@ def test_kunde_debug_zeigt_kontakt_ohne_belege(client):
     assert [k["name"] for k in body["kontakte"]] == ["Madeo-Baumgartner Christina"]
     assert body["belege_dieser_kontakte"] == []
     assert body["buchungen"] == []
+
+
+def test_kunde_pruefen_seite_zeigt_kontakt_beleg_und_buchung(client):
+    """Die Seite stellt die drei Sichten nebeneinander - erst dadurch faellt auf,
+    wenn eine Buchung unter einem Kontakt laeuft, dem kein Beleg zugeordnet ist."""
+    test_client, TestSession = client
+    db = TestSession()
+    db.add(Contact(id=10, contact_nr="K-10", name="Madeo-Baumgartner Christina",
+                   raw={"name_1": "Madeo-Baumgartner", "name_2": "Christina"}))
+    db.add(Quote(id=1, document_nr="AN-00060", contact_id=10,
+                 title="Probewochenende 17.-18.10.26",
+                 raw={"contact_id": 10, "contact_sub_id": 11}))
+    db.add(Booking(booking_key="AN-00060", quote_id=1, contact_id=10, status="nur_angebot",
+                   kunde="Madeo-Baumgartner Christina", anlass="Probewochenende 17.-18.10.26"))
+    db.commit()
+    db.close()
+
+    seite = test_client.get("/admin/kunde-pruefen?suche=Madeo")
+
+    assert seite.status_code == 200
+    assert "Madeo-Baumgartner Christina" in seite.text
+    assert "AN-00060" in seite.text
+    # Die verknuepfte Kontaktperson steht am Beleg und wird mit ausgewiesen.
+    assert "contact_sub_id=11" in seite.text
+
+
+def test_kunde_pruefen_ohne_suche_zeigt_nur_das_formular(client):
+    test_client, _ = client
+
+    seite = test_client.get("/admin/kunde-pruefen")
+
+    assert seite.status_code == 200
+    assert "Kunde prüfen" in seite.text
+    assert "Belege dieser Kontakte" not in seite.text
+
+
+def test_kunde_pruefen_ist_nur_fuer_angemeldete_admins(client):
+    test_client, _ = client
+    test_client.get("/logout")
+
+    antwort = test_client.get("/admin/kunde-pruefen", follow_redirects=False)
+
+    assert antwort.status_code == 303
+    assert antwort.headers["location"] == "/login"
