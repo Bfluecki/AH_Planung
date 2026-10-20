@@ -161,3 +161,31 @@ def test_ohne_datum_weiterhin_dokumentdatum_als_notbehelf():
     assert extract_service_period("Vereinsanlass", dt.date(2026, 7, 15)) == (
         dt.date(2026, 7, 15), dt.date(2026, 7, 15)
     )
+
+
+def test_bis_zwischen_blossem_tag_und_numerischem_datum():
+    """"09. bis 10.01.2027" wurde als einzelner Tag 10.01. gelesen - der Anlass war
+    damit um einen Tag zu kurz, und bei einer Uebernachtung fiel die Nacht ganz weg.
+    Die Monatsnamen-Formen kannten "bis" laengst, die numerische nicht."""
+    assert extract_service_period("Probewochenende 09. bis 10.01.2027", None) == (
+        dt.date(2027, 1, 9), dt.date(2027, 1, 10)
+    )
+    assert extract_service_period("Wochenende vom 25.06. bis 03.07.2026", None) == (
+        dt.date(2026, 6, 25), dt.date(2026, 7, 3)
+    )
+    assert extract_service_period("Lager 30.12.26 bis zum 02.01.27", None) == (
+        dt.date(2026, 12, 30), dt.date(2027, 1, 2)
+    )
+
+
+def test_bindestrich_und_schraegstrich_bleiben_erhalten():
+    """Die haeufigen Schreibweisen duerfen durch die Erweiterung nicht verlieren."""
+    assert extract_service_period("03.09.27-05.09.27", None) == (
+        dt.date(2027, 9, 3), dt.date(2027, 9, 5)
+    )
+    assert extract_service_period("19.02.27 - 21.02.27", None) == (
+        dt.date(2027, 2, 19), dt.date(2027, 2, 21)
+    )
+    assert extract_service_period("25.-28.05.2026", None) == (
+        dt.date(2026, 5, 25), dt.date(2026, 5, 28)
+    )

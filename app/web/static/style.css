@@ -209,6 +209,16 @@ tfoot td { font-weight: 700; background: var(--color-row-alt); border-top: 2px s
 .linked-reference { color: var(--color-positive); }
 .linked-none { color: #b0a897; }
 
+/* Freitext aus Bexio: kommt als mehrzeiliger Klartext (siehe html_zu_text) -
+   die Umbrueche muessen stehen bleiben, sonst klebt alles aneinander. */
+.freitext { display: block; white-space: pre-line; max-width: 34rem; }
+.feldherkunft {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+}
+
 .empty { color: var(--color-muted); font-style: italic; }
 
 /* ---- Aufklappbare Monate ---- */

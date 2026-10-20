@@ -19,7 +19,7 @@
             <div class="kpi">
                 <div class="kpi-label">Abgelehnte Angebote</div>
                 <div class="kpi-value">{{ anzahl }}</div>
-                <div class="kpi-sub">nach Angebotsdatum {{ year }}</div>
+                <div class="kpi-sub">Anlass im Planjahr {{ year }}</div>
             </div>
             <div class="kpi">
                 <div class="kpi-label">Entgangener Umsatz</div>
@@ -66,15 +66,20 @@
                     <td class="text-col">{{ row.quote_date.strftime('%d.%m.%Y') if row.quote_date else "" }}</td>
                     <td class="text-col">{{ row.kunde }}</td>
                     <td class="text-col">{{ row.anlass }}</td>
-                    <td class="text-col">{{ format_zeitraum(row.service_start, row.service_end) }}</td>
+                    <td class="text-col">
+                        {%- if row.service_start %}{{ format_zeitraum(row.service_start, row.service_end) }}
+                        {%- else %}<span class="empty">kein Datum im Titel</span>{% endif %}</td>
                     <td>{{ row.total|swissnum }}</td>
-                    <td class="text-col">{{ row.begruendung or "—" }}</td>
+                    <td class="text-col">
+                        {%- if row.begruendung %}<span class="freitext">{{ row.begruendung }}</span>
+                        <span class="feldherkunft">aus Bexio-Feld «{{ row.begruendung_feld }}»</span>
+                        {%- else %}<span class="empty">—</span>{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <p class="empty">Keine abgelehnten Angebote mit Angebotsdatum {{ year }}.</p>
+        <p class="empty">Keine abgelehnten Angebote im Planjahr {{ year }}.</p>
         <div class="callout">Falls das nicht stimmt, passt vermutlich die Statuszuordnung nicht:
         als «abgelehnt» gilt zurzeit
         {% if status_ids %}<code>kb_item_status_id {{ status_ids|join(', ') }}</code>{% else %}<strong>kein Status</strong>{% endif %}.
