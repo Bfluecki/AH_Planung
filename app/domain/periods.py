@@ -64,9 +64,13 @@ _FR_RANGE_CROSS_MONTH_RE = re.compile(
 # Rein numerisch: "25.-28.05.2026", "25.06.-03.07.2026", "25.06.2026-03.07.2026"
 # und - in echten Bexio-Titeln haeufig - mit zweistelliger Jahreszahl:
 # "03.09.27-05.09.27" oder "19.02.27 - 21.02.27".
+# Als Trennung gilt dasselbe wie bei den Monatsnamen (_SEP), also auch das Wort
+# "bis": "09. bis 10.01.2027" wurde sonst als einzelner Tag 10.01. gelesen und der
+# Anlass um einen Tag verkuerzt.
 _YEAR = r"(?:\d{4}|\d{2})"
 _NUMERIC_RANGE_RE = re.compile(
-    rf"(\d{{1,2}})\.(?:(\d{{1,2}})\.)?({_YEAR})?\.?\s*[-–/]\s*(\d{{1,2}})\.(\d{{1,2}})\.({_YEAR})"
+    rf"(\d{{1,2}})\.(?:(\d{{1,2}})\.)?({_YEAR})?\.?\s*{_SEP}\s*(\d{{1,2}})\.(\d{{1,2}})\.({_YEAR})",
+    re.IGNORECASE,
 )
 # Einzelnes numerisches Datum: "Sitzung 25.07.2026" oder "Anlass 05.09.27"
 _NUMERIC_SINGLE_DATE_RE = re.compile(rf"(\d{{1,2}})\.(\d{{1,2}})\.({_YEAR})")

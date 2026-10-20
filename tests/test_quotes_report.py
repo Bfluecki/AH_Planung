@@ -12,6 +12,7 @@ from app.domain.quotes import (
     declined_quote_count,
     declined_quotes,
     extract_comment,
+    extract_comment_mit_feld,
     quote_status_overview,
 )
 from app.models import Contact, Order, Quote
@@ -84,10 +85,33 @@ def test_begruendung_auch_am_auftrag_statt_am_angebot(db_session):
 
 
 def test_extract_comment_nimmt_den_ersten_treffer_in_reihenfolge():
-    assert extract_comment({"footer": "AGB"}, {"internal_note": "Grund"}) == "AGB"
     assert extract_comment({}, {"internal_note": "Grund"}) == "Grund"
+    assert extract_comment({"remarks": "Termin belegt"}, {"internal_note": "Grund"}) == "Termin belegt"
     assert extract_comment(None, {"remarks": "   "}) == ""
     assert extract_comment() == ""
+
+
+def test_gedruckte_belegtexte_gelten_nicht_als_begruendung():
+    """footer/header sind die gedruckte Zuschlagstabelle und die Grussformel. Sie
+    standen in jedem Angebot und fuellten die Spalte "Begruendung" mit derselben
+    Floskel - eine Begruendung, die keine war."""
+    assert extract_comment({"footer": "Freundliche Grüsse", "header": "Zuschläge"}) == ""
+    assert extract_comment({"footer": "AGB"}, {"internal_note": "Grund"}) == "Grund"
+
+
+def test_begruendung_wird_aus_html_in_klartext_gewandelt():
+    """Bexio liefert Freitexte als HTML-Fragment - ungefiltert war die Spalte
+    unlesbar ("Zuschl&auml;ge: <br />...")."""
+    roh = "Termin belegt:<br />Kein Zimmer frei<br /><br />Gr&uuml;sse"
+
+    assert extract_comment({"internal_note": roh}) == "Termin belegt:\nKein Zimmer frei\n\nGrüsse"
+
+
+def test_extract_comment_nennt_das_feld_aus_dem_der_text_stammt():
+    text, feld = extract_comment_mit_feld({}, {"remarks": "Termin belegt"})
+
+    assert (text, feld) == ("Termin belegt", "remarks")
+    assert extract_comment_mit_feld() == ("", "")
 
 
 def test_status_uebersicht_zeigt_vorkommen_mit_beispielen(db_session):
@@ -150,3 +174,45 @@ def test_ohne_konfigurierte_status_zaehlt_nichts(db_session):
 
     assert declined_quote_count(db_session, set(), 2026) == 0
     assert declined_quotes(db_session, status_ids=set(), year=2026) == []
+
+
+def test_report_fuehrt_das_angebot_im_jahr_des_anlasses(db_session):
+    """Gemeldet: im Dashboard 2027 stand eine abgelehnte Buchung, der Report 2027
+    war leer - er filterte nach dem Angebotsdatum (2026), die Planung nach dem
+    Anlass (2027). Zwei Jahreszahlen fuer dieselbe Zeile."""
+    db_session.add(Contact(id=1, contact_nr="K-1", name="Junger Chor Solothurn"))
+    _quote(db_session, 1, "AN-00048", status=4,
+           titel="Probewochenende Junger Chor Solothurn 09. bis 10.01.2027",
+           datum=dt.date(2026, 5, 28))
+    db_session.commit()
+
+    im_anlassjahr = declined_quotes(db_session, status_ids={4}, year=2027)
+    im_angebotsjahr = declined_quotes(db_session, status_ids={4}, year=2026)
+
+    assert [r.document_nr for r in im_anlassjahr] == ["AN-00048"]
+    assert im_anlassjahr[0].planjahr_quelle == "anlass"
+    assert im_angebotsjahr == []
+    # Der Zaehler in der Leiste folgt derselben Regel.
+    assert declined_quote_count(db_session, {4}, 2027) == 1
+    assert declined_quote_count(db_session, {4}, 2026) == 0
+
+
+def test_ohne_datum_im_titel_zaehlt_das_angebotsdatum(db_session):
+    """Notbehelf, wie in der uebrigen Planung - und als solcher gekennzeichnet."""
+    _quote(db_session, 1, "AN-001", status=4, titel="Seminar", datum=dt.date(2025, 11, 9))
+    db_session.commit()
+
+    zeilen = declined_quotes(db_session, status_ids={4}, year=2025)
+
+    assert [r.document_nr for r in zeilen] == ["AN-001"]
+    assert zeilen[0].planjahr_quelle == "angebotsdatum"
+
+
+def test_mehrjaehriger_anlass_zaehlt_in_beiden_jahren(db_session):
+    _quote(db_session, 1, "AN-001", status=4,
+           titel="Silvesterlager 30.12.2026-02.01.2027", datum=dt.date(2026, 6, 1))
+    db_session.commit()
+
+    assert declined_quote_count(db_session, {4}, 2026) == 1
+    assert declined_quote_count(db_session, {4}, 2027) == 1
+    assert declined_quote_count(db_session, {4}, 2028) == 0

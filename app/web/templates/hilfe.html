@@ -94,6 +94,15 @@
         Nummer «Abgelehnt» bedeutet, steht in der Einstellung
         <code>QUOTE_DECLINED_STATUS_IDS</code>; <code>/admin/debug/angebot-status</code> zeigt die
         Nummern, die in den echten Daten vorkommen.</p>
+        <p>Der Report «Abgelehnte Angebote» führt eine Zeile im <strong>Planjahr des
+        Anlasses</strong>, nicht im Jahr des Angebotsdatums – gleich wie die übrige Planung.
+        Ein im Mai 2026 abgelehntes Angebot für einen Anlass im Januar 2027 erscheint also
+        unter 2027. Steht im Titel kein Datum, bleibt das Angebotsdatum als Notbehelf.</p>
+        <p>Die Spalte <strong>Begründung</strong> zeigt den ersten gefüllten internen
+        Freitext des Angebots oder des zugehörigen Auftrags und nennt darunter, aus welchem
+        Bexio-Feld er stammt. Die <em>gedruckten</em> Belegtexte (Kopf- und Fusszeile mit
+        Zuschlagstabelle und Grussformel) zählen nicht – sie stehen in jedem Angebot und
+        wären keine Begründung. Bleibt die Spalte leer, wurde in Bexio nichts erfasst.</p>
         <p>Ein abgelehntes Angebot wird <strong>nicht mitgeplant</strong> – es ist in Dashboard und
         Kalender ausgeblendet und fehlt in den offenen Umsätzen. Der Betrag bleibt an der Zeile
         stehen, sichtbar über den Status-Filter und im Report «Abgelehnte Angebote». Steht am
