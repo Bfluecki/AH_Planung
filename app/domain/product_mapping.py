@@ -29,7 +29,7 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
     "LH-UEB": ErtragsArt.UEBERNACHTUNG,  # Mehrbettzimmer
     "LH-UEB-EZU": ErtragsArt.UEBERNACHTUNG,  # Einzelzimmerzuschlag (Zusatzkosten pro Nacht)
     "LH-UEB-DZ": ErtragsArt.UEBERNACHTUNG,  # Doppelzimmerzuschlag (Zusatzkosten pro Nacht)
-    "LH-KZA": ErtragsArt.UEBERNACHTUNG,  # Kurzaufenthalt, pro Person und Nacht
+    "LH-KZA": ErtragsArt.UEBERNACHTUNG,  # Kurzaufenthalt-Zuschlag, pro Person (nicht pro Nacht)
     # BB-UEB = "Bed & Breakfast" bei einem externen Anbieter (nicht Aarbergerhus/
     # Louishaus selbst) - bestaetigt vom Auftraggeber. Nicht im Produktkatalog-Export
     # gelistet, da externe Unterkunft. Zaehlt zu den Uebernachtungen, siehe
@@ -89,15 +89,21 @@ PRODUCT_CODE_MAP: dict[str, ErtragsArt] = {
 # Nur Codes, deren Menge tatsaechlich die Basis-Uebernachtungen (PAX-Naechte)
 # darstellt (fuer die Naechte-Berechnung UND die PAX-Herleitung, siehe
 # app/domain/allocation.py und _document_metrics() in app/sync/service.py).
-# LH-UEB-EZU/LH-UEB-DZ sind laut echten Belegen Zuschlaege "pro Nacht" (Einzel-/
-# Doppelzimmerzuschlag), keine zusaetzlichen Naechte - sie wuerden sonst doppelt
-# gezaehlt. AH-UEB-ANT ist trotz des Namens keine Uebernachtung, sondern eine
-# tagesbasierte Raumnutzungsgebuehr (siehe PRODUCT_CODE_MAP). Sie fliessen
-# weiterhin ueber PRODUCT_CODE_MAP in den Umsatz/die Ertragsart-Auswertung ein,
-# nur nicht in die Naechte-/PAX-Zaehlung.
+#
+# Ausgenommen sind alle Zuschlaege, die neben der Basisuebernachtung stehen - ihre
+# Menge ist nochmals die Personenzahl, nicht eine weitere Nacht:
+#   LH-UEB-EZU / LH-UEB-DZ  Einzel-/Doppelzimmerzuschlag, pro Nacht
+#   LH-KZA                  Kurzaufenthalt-Zuschlag, laut Beleg "pro Person"
+#                           (nicht pro Nacht) und nur bei Aufenthalten ueber eine
+#                           Nacht ueberhaupt vorhanden - genau dort verdoppelte er
+#                           die PAX-Zahl (verifiziert an Auftrag AU-00096: 20x
+#                           LH-UEB + 20x LH-KZA fuer 20 Personen und 1 Nacht).
+#   AH-UEB-ANT              trotz des Namens keine Uebernachtung, sondern eine
+#                           tagesbasierte Raumnutzungsgebuehr.
+# Sie fliessen weiterhin ueber PRODUCT_CODE_MAP in den Umsatz/die Ertragsart-
+# Auswertung ein, nur nicht in die Naechte-/PAX-Zaehlung.
 NIGHT_RELEVANT_CODES = {
     "LH-UEB",
-    "LH-KZA",
     "BB-UEB",
 }
 

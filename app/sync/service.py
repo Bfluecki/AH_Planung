@@ -181,9 +181,62 @@ def _ensure_contact_exists(
     return contact_id
 
 
+# Welche Buchungsspalte auf welchen Belegtyp zeigt - gebraucht, um die Referenz zu
+# loesen, bevor ein nicht mehr vorhandener Beleg entfernt wird.
+_BOOKING_SPALTE = {
+    Quote: "quote_id",
+    Order: "order_id",
+    Invoice: "invoice_id",
+    CreditNote: "credit_note_id",
+}
+
+
+def _entferne_geloeschte_dokumente(db: Session, modell, document_type: str, gesehen: set[int]) -> int:
+    """Belege entfernen, die Bexio nicht mehr liefert.
+
+    Ohne das bleibt ein in Bexio geloeschtes Angebot fuer immer im Cache und
+    erzeugt weiter eine Buchung - eine Planzeile zu einem Anlass, den es nicht
+    gibt. Nur aufrufen, wenn die Liste vollstaendig abgerufen wurde: bei einem
+    Abbruch mittendrin waeren die noch nicht gesehenen Belege faelschlich
+    "nicht mehr vorhanden".
+    """
+    bestand = {row_id for (row_id,) in db.query(modell.id).all()}
+    verwaist = bestand - gesehen
+    if not verwaist:
+        return 0
+    if not gesehen:
+        # Eine leere Antwort bei vollem Cache ist weit wahrscheinlicher ein
+        # Abrufproblem als die Loeschung saemtlicher Belege - nichts anfassen.
+        logger.warning(
+            "%s: Bexio lieferte keinen einzigen Beleg, im Cache liegen aber %d - "
+            "es wird nichts geloescht.", document_type, len(bestand)
+        )
+        return 0
+
+    for row in db.query(modell).filter(modell.id.in_(verwaist)).all():
+        logger.info(
+            "%s %s (%s) existiert in Bexio nicht mehr - wird aus dem Cache entfernt.",
+            document_type, row.document_nr, row.title,
+        )
+    # Buchungsreferenzen loesen, sonst blockiert der Fremdschluessel. Die Buchungen
+    # selbst baut rebuild_bookings unmittelbar danach neu auf und raeumt die
+    # verwaisten Zeilen weg.
+    spalte = getattr(Booking, _BOOKING_SPALTE[modell])
+    db.query(Booking).filter(spalte.in_(verwaist)).update(
+        {spalte: None}, synchronize_session=False
+    )
+    db.query(LineItem).filter(
+        LineItem.document_type == document_type, LineItem.document_id.in_(verwaist)
+    ).delete(synchronize_session=False)
+    db.query(modell).filter(modell.id.in_(verwaist)).delete(synchronize_session=False)
+    return len(verwaist)
+
+
 def sync_quotes(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
+    gesehen: set[int] = set()
     for raw in client.list_quotes():
+        gesehen.add(raw["id"])
         row = db.get(Quote, raw["id"])
         if row is None:
             row = Quote(id=raw["id"])
@@ -198,13 +251,16 @@ def sync_quotes(client: BexioClient, db: Session, missing_contact_ids: set[int])
         row.raw = raw
         row.synced_at = dt.datetime.now(dt.timezone.utc)
         count += 1
+    _entferne_geloeschte_dokumente(db, Quote, "quote", gesehen)
     db.commit()
     return count
 
 
 def sync_orders(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
+    gesehen: set[int] = set()
     for raw in client.list_orders():
+        gesehen.add(raw["id"])
         row = db.get(Order, raw["id"])
         if row is None:
             row = Order(id=raw["id"])
@@ -218,13 +274,16 @@ def sync_orders(client: BexioClient, db: Session, missing_contact_ids: set[int])
         row.raw = raw
         row.synced_at = dt.datetime.now(dt.timezone.utc)
         count += 1
+    _entferne_geloeschte_dokumente(db, Order, "order", gesehen)
     db.commit()
     return count
 
 
 def sync_invoices(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
+    gesehen: set[int] = set()
     for raw in client.list_invoices():
+        gesehen.add(raw["id"])
         row = db.get(Invoice, raw["id"])
         if row is None:
             row = Invoice(id=raw["id"])
@@ -239,14 +298,17 @@ def sync_invoices(client: BexioClient, db: Session, missing_contact_ids: set[int
         row.raw = raw
         row.synced_at = dt.datetime.now(dt.timezone.utc)
         count += 1
+    _entferne_geloeschte_dokumente(db, Invoice, "invoice", gesehen)
     db.commit()
     return count
 
 
 def sync_credit_notes(client: BexioClient, db: Session, missing_contact_ids: set[int]) -> int:
     count = 0
+    gesehen: set[int] = set()
     try:
         for raw in client.list_credit_notes():
+            gesehen.add(raw["id"])
             row = db.get(CreditNote, raw["id"])
             if row is None:
                 row = CreditNote(id=raw["id"])
@@ -273,6 +335,7 @@ def sync_credit_notes(client: BexioClient, db: Session, missing_contact_ids: set
             db.rollback()
             return count
         raise
+    _entferne_geloeschte_dokumente(db, CreditNote, "credit_note", gesehen)
     db.commit()
     return count
 
