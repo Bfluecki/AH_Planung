@@ -661,8 +661,7 @@ def _beleg_kontaktfelder(raw: dict | None) -> dict:
     return {feld: raw.get(feld) for feld in _KONTAKT_FELDER if feld in raw}
 
 
-@router.get("/debug/kunde")
-def admin_debug_kunde(suche: str = "", limit: int = 20, db: Session = Depends(get_db)) -> dict:
+def _kunden_diagnose(db: Session, suche: str, limit: int = 20) -> dict:
     """Warum steht bei dieser Buchung dieser Kunde?
 
     Der Kundenname einer Buchung stammt aus dem Kontakt, auf den der Beleg per
@@ -740,3 +739,38 @@ def admin_debug_kunde(suche: str = "", limit: int = 20, db: Session = Depends(ge
             for b in buchungen
         ],
     }
+
+
+@router.get("/debug/kunde")
+def admin_debug_kunde(suche: str = "", limit: int = 20, db: Session = Depends(get_db)) -> dict:
+    """Rohdaten-Variante der Kundenpruefung (siehe /admin/kunde-pruefen)."""
+    return _kunden_diagnose(db, suche, limit)
+
+
+@router.get("/kunde-pruefen")
+def admin_kunde_pruefen(
+    request: Request,
+    suche: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Seite zur Kundenpruefung: zeigt zu einem Namen die Kontakte, die ihnen
+    zugeordneten Belege und die Buchungen - nebeneinander, damit eine Abweichung
+    gegenueber der Bexio-Oberflaeche ohne Rohdaten-Lektuere auffaellt."""
+    diagnose = _kunden_diagnose(db, suche) if suche.strip() else None
+    return templates.TemplateResponse(
+        "kunde_pruefen.html",
+        {
+            "request": request,
+            "suche": suche,
+            "diagnose": diagnose,
+            **nav_context(
+                db,
+                user,
+                get_effective_config(db, get_settings()).current_planning_year,
+                "admin",
+                ziel_url="/admin/kunde-pruefen",
+                mit_jahr=False,
+            ),
+        },
+    )
