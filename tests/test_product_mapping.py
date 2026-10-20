@@ -41,14 +41,20 @@ def test_night_surcharges_excluded_from_night_count():
 
 
 def test_codes_corrected_against_full_product_catalog():
-    # Laut vollstaendigem Bexio-Produktkatalog-Export: LH-KZA ("Kurzaufenthalt")
-    # ist eine Uebernachtung (pro Person und Nacht, Bexio-Gruppe "Uebernachtungen"),
-    # AH-UEB-ANT ("Anteil Raumnutzung") trotz Namen KEINE Uebernachtung, sondern
-    # eine tagesbasierte Raumnutzungsgebuehr (Bexio-Gruppe "Raummieten").
-    assert ertragsart_fuer("LH-KZA") == ErtragsArt.UEBERNACHTUNG
-    assert ist_uebernachtung("LH-KZA") is True
+    # AH-UEB-ANT ("Anteil Raumnutzung") ist trotz des Namens KEINE Uebernachtung,
+    # sondern eine tagesbasierte Raumnutzungsgebuehr (Bexio-Gruppe "Raummieten").
     assert ertragsart_fuer("AH-UEB-ANT") == ErtragsArt.RAUM
     assert ist_uebernachtung("AH-UEB-ANT") is False
+
+
+def test_kurzaufenthalt_ist_ein_zuschlag_keine_zweite_nacht():
+    """Der Produktkatalog fuehrt LH-KZA unter "Uebernachtungen", der echte Beleg
+    zeigt aber "pro Person" (nicht pro Nacht): Auftrag AU-00096 enthaelt fuer
+    20 Personen und 1 Nacht sowohl 20x LH-UEB als auch 20x LH-KZA. Beide zu
+    zaehlen verdoppelte die hergeleitete PAX-Zahl - wie bei den Zimmerzuschlaegen
+    zaehlt deshalb nur die Basisuebernachtung."""
+    assert ertragsart_fuer("LH-KZA") == ErtragsArt.UEBERNACHTUNG  # Umsatz: Uebernachtung
+    assert ist_uebernachtung("LH-KZA") is False                   # Naechte/PAX: nein
 
 
 def test_beverage_and_room_codes_from_catalog():

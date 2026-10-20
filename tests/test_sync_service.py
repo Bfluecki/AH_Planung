@@ -423,3 +423,176 @@ def test_ohne_konfigurierte_ablehnungsstatus_bleibt_alles_pipeline(db_session):
     rebuild_bookings(db_session, Settings(quote_declined_status_ids=""))
 
     assert db_session.query(Booking).one().status == "nur_angebot"
+
+
+def test_kurzaufenthalt_verdoppelt_die_pax_zahl_nicht(db_session):
+    """Echter Fall (Auftrag AU-00096): 20 Personen, 1 Nacht. Bexio erfasst dafuer
+    die Basisuebernachtung UND den Kurzaufenthalts-Zuschlag, beide mit der
+    Personenzahl als Menge. Wurden beide als Naechte gezaehlt, ergab das PAX 40."""
+    for position_id, code, menge in ((1, "LH-UEB", "20.00"), (2, "LH-KZA", "20.00"),
+                                     (3, "KU-TXT", "20.00")):
+        db_session.add(
+            LineItem(
+                document_type="order",
+                document_id=1,
+                position_bexio_id=position_id,
+                product_code=code,
+                quantity=Decimal(menge),
+                raw={"text": f"Produktcode: {code}"},
+            )
+        )
+    db_session.commit()
+
+    metrics = _document_metrics(db_session, "order", 1, total=Decimal("3240.00"), physical_nights=1)
+
+    assert metrics.pax == 20
+    assert metrics.nights == Decimal("20.00")
+
+
+class _ListenClient:
+    """Liefert die Belege, die Bexio gerade zurueckgibt."""
+
+    def __init__(self, quotes=None, orders=None, invoices=None):
+        self.quotes = quotes or []
+        self.orders = orders or []
+        self.invoices = invoices or []
+
+    def list_quotes(self):
+        return iter(self.quotes)
+
+    def list_orders(self):
+        return iter(self.orders)
+
+    def list_invoices(self):
+        return iter(self.invoices)
+
+
+def _rohangebot(id, nr, titel="Probewochenende 17.-18.10.2026"):
+    return {"id": id, "document_nr": nr, "title": titel, "date": "2026-07-08",
+            "total_net": "3240.00", "kb_item_status_id": 2}
+
+
+def test_in_bexio_geloeschtes_angebot_verschwindet_aus_der_planung(db_session):
+    """Ein geloeschtes Angebot blieb fuer immer im Cache und erzeugte weiter eine
+    Buchung - eine Planzeile zu einem Anlass, den es nicht mehr gibt."""
+    from app.models import Booking, Quote
+    from app.sync.service import rebuild_bookings, sync_quotes
+
+    client = _ListenClient(quotes=[_rohangebot(1, "AN-00060"), _rohangebot(2, "AN-00061")])
+    sync_quotes(client, db_session, missing_contact_ids=set())
+    rebuild_bookings(db_session)
+    assert {b.booking_key for b in db_session.query(Booking).all()} == {"AN-00060", "AN-00061"}
+
+    # In Bexio wird AN-00060 geloescht.
+    client.quotes = [_rohangebot(2, "AN-00061")]
+    sync_quotes(client, db_session, missing_contact_ids=set())
+
+    assert {q.document_nr for q in db_session.query(Quote).all()} == {"AN-00061"}
+    rebuild_bookings(db_session)
+    assert {b.booking_key for b in db_session.query(Booking).all()} == {"AN-00061"}
+
+
+def test_positionen_des_geloeschten_belegs_verschwinden_mit(db_session):
+    from app.models import Quote
+    from app.sync.service import sync_quotes
+
+    client = _ListenClient(quotes=[_rohangebot(1, "AN-00060"), _rohangebot(2, "AN-00061")])
+    sync_quotes(client, db_session, missing_contact_ids=set())
+    db_session.add(LineItem(document_type="quote", document_id=1, position_bexio_id=5,
+                            product_code="LH-UEB", quantity=Decimal("20.00"), raw={}))
+    db_session.commit()
+
+    client.quotes = [_rohangebot(2, "AN-00061")]
+    sync_quotes(client, db_session, missing_contact_ids=set())
+
+    assert {q.id for q in db_session.query(Quote).all()} == {2}
+    assert db_session.query(LineItem).filter_by(document_type="quote", document_id=1).count() == 0
+
+
+def test_leere_antwort_loescht_nichts(db_session):
+    """Eine leere Liste bei vollem Cache ist weit wahrscheinlicher ein Abrufproblem
+    als die Loeschung saemtlicher Belege."""
+    from app.models import Quote
+    from app.sync.service import sync_quotes
+
+    sync_quotes(_ListenClient(quotes=[_rohangebot(1, "AN-00060")]), db_session, set())
+    assert db_session.query(Quote).count() == 1
+
+    sync_quotes(_ListenClient(quotes=[]), db_session, set())
+
+    assert db_session.query(Quote).count() == 1
+
+
+def test_abbruch_mitten_im_abruf_loescht_nichts(db_session):
+    """Bricht der Abruf nach der ersten Seite ab, sind die uebrigen Belege nicht
+    "nicht mehr vorhanden" - sie wurden nur noch nicht gesehen."""
+    from app.models import Quote
+    from app.sync.service import sync_quotes
+
+    sync_quotes(
+        _ListenClient(quotes=[_rohangebot(1, "AN-00060"), _rohangebot(2, "AN-00061")]),
+        db_session, set(),
+    )
+
+    class _AbbruchClient:
+        def list_quotes(self):
+            yield _rohangebot(1, "AN-00060")
+            raise BexioApiError(500, "Server Error")
+
+    with pytest.raises(BexioApiError):
+        sync_quotes(_AbbruchClient(), db_session, set())
+    db_session.rollback()
+
+    assert db_session.query(Quote).count() == 2
+
+
+def test_buchungsreferenz_wird_geloest_bevor_der_beleg_faellt(db_session):
+    """Produktiv laeuft Postgres und erzwingt den Fremdschluessel bookings.quote_id -
+    die Referenz muss vor dem Loeschen fallen, sonst bricht der Sync ab. SQLite
+    pruefte das in den Tests nicht, deshalb hier ausdruecklich."""
+    from app.models import Booking
+    from app.sync.service import rebuild_bookings, sync_quotes
+
+    client = _ListenClient(quotes=[_rohangebot(1, "AN-00060")])
+    sync_quotes(client, db_session, missing_contact_ids=set())
+    rebuild_bookings(db_session)
+    assert db_session.query(Booking).one().quote_id == 1
+
+    client.quotes = [_rohangebot(2, "AN-00061")]
+    sync_quotes(client, db_session, missing_contact_ids=set())
+
+    buchung = db_session.query(Booking).filter_by(booking_key="AN-00060").one()
+    assert buchung.quote_id is None
+
+
+def test_loeschen_haelt_auch_mit_erzwungenen_fremdschluesseln(db_session):
+    """Dasselbe noch einmal gegen eine SQLite-Verbindung mit eingeschalteter
+    Fremdschluesselpruefung - so nah an Postgres, wie es hier geht."""
+    from sqlalchemy import event, create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db import Base
+    from app.models import Booking, Quote
+    from app.sync.service import rebuild_bookings, sync_quotes
+
+    engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def _fk_an(dbapi_connection, connection_record):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    try:
+        client = _ListenClient(quotes=[_rohangebot(1, "AN-00060"), _rohangebot(2, "AN-00061")])
+        sync_quotes(client, session, missing_contact_ids=set())
+        rebuild_bookings(session)
+
+        client.quotes = [_rohangebot(2, "AN-00061")]
+        sync_quotes(client, session, missing_contact_ids=set())
+
+        assert {q.id for q in session.query(Quote).all()} == {2}
+        rebuild_bookings(session)
+        assert {b.booking_key for b in session.query(Booking).all()} == {"AN-00061"}
+    finally:
+        session.close()
